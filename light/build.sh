@@ -3,11 +3,11 @@ set -eu
 
 mkdir -p Adafruit_NeoPixel
 
-ARDUINO_ROOT=/usr/local/google/home/dek/arduino-1.5.8
+ARDUINO_ROOT=/home/dek/arduino-1.5.8
 ARDUINO_TOOLS=$ARDUINO_ROOT/hardware/tools/avr/bin
 
-$ARDUINO_TOOLS/avr-g++ -c -g -Os -w -fno-exceptions -ffunction-sections -fdata-sections -fno-threadsafe-statics -MMD -mmcu=atmega328p -DF_CPU=16000000L -DARDUINO=158 -DARDUINO_AVR_UNO -DARDUINO_ARCH_AVR -I$ARDUINO_ROOT/hardware/arduino/avr/cores/arduino -I$ARDUINO_ROOT/hardware/arduino/avr/variants/standard -I/usr/local/google/home/dek/Arduino/libraries/Adafruit_NeoPixel light.cpp -o light.cpp.o 
-$ARDUINO_TOOLS/avr-g++ -c -g -Os -w -fno-exceptions -ffunction-sections -fdata-sections -fno-threadsafe-statics -MMD -mmcu=atmega328p -DF_CPU=16000000L -DARDUINO=158 -DARDUINO_AVR_UNO -DARDUINO_ARCH_AVR -I$ARDUINO_ROOT/hardware/arduino/avr/cores/arduino -I$ARDUINO_ROOT/hardware/arduino/avr/variants/standard -I/usr/local/google/home/dek/Arduino/libraries/Adafruit_NeoPixel -I/usr/local/google/home/dek/Arduino/libraries/Adafruit_NeoPixel/utility /usr/local/google/home/dek/Arduino/libraries/Adafruit_NeoPixel/Adafruit_NeoPixel.cpp -o Adafruit_NeoPixel/Adafruit_NeoPixel.cpp.o 
+$ARDUINO_TOOLS/avr-g++ -c -g -Os -w -fno-exceptions -ffunction-sections -fdata-sections -fno-threadsafe-statics -MMD -mmcu=atmega328p -DF_CPU=16000000L -DARDUINO=158 -DARDUINO_AVR_UNO -DARDUINO_ARCH_AVR -I$ARDUINO_ROOT/hardware/arduino/avr/cores/arduino -I$ARDUINO_ROOT/hardware/arduino/avr/variants/standard light.cpp -o light.cpp.o 
+$ARDUINO_TOOLS/avr-g++ -c -g -Os -w -fno-exceptions -ffunction-sections -fdata-sections -fno-threadsafe-statics -MMD -mmcu=atmega328p -DF_CPU=16000000L -DARDUINO=158 -DARDUINO_AVR_UNO -DARDUINO_ARCH_AVR -I$ARDUINO_ROOT/hardware/arduino/avr/cores/arduino -I$ARDUINO_ROOT/hardware/arduino/avr/variants/standard -I. Adafruit_NeoPixel.cpp -o Adafruit_NeoPixel.cpp.o 
 $ARDUINO_TOOLS/avr-gcc -c -g -Os -w -ffunction-sections -fdata-sections -MMD -mmcu=atmega328p -DF_CPU=16000000L -DARDUINO=158 -DARDUINO_AVR_UNO -DARDUINO_ARCH_AVR -I$ARDUINO_ROOT/hardware/arduino/avr/cores/arduino -I$ARDUINO_ROOT/hardware/arduino/avr/variants/standard $ARDUINO_ROOT/hardware/arduino/avr/cores/arduino/wiring_pulse.c -o wiring_pulse.c.o 
 $ARDUINO_TOOLS/avr-gcc -c -g -Os -w -ffunction-sections -fdata-sections -MMD -mmcu=atmega328p -DF_CPU=16000000L -DARDUINO=158 -DARDUINO_AVR_UNO -DARDUINO_ARCH_AVR -I$ARDUINO_ROOT/hardware/arduino/avr/cores/arduino -I$ARDUINO_ROOT/hardware/arduino/avr/variants/standard $ARDUINO_ROOT/hardware/arduino/avr/cores/arduino/wiring.c -o wiring.c.o 
 $ARDUINO_TOOLS/avr-gcc -c -g -Os -w -ffunction-sections -fdata-sections -MMD -mmcu=atmega328p -DF_CPU=16000000L -DARDUINO=158 -DARDUINO_AVR_UNO -DARDUINO_ARCH_AVR -I$ARDUINO_ROOT/hardware/arduino/avr/cores/arduino -I$ARDUINO_ROOT/hardware/arduino/avr/variants/standard $ARDUINO_ROOT/hardware/arduino/avr/cores/arduino/hooks.c -o hooks.c.o 
@@ -56,7 +56,7 @@ $ARDUINO_TOOLS/avr-ar rcs core.a HardwareSerial.cpp.o
 $ARDUINO_TOOLS/avr-ar rcs core.a abi.cpp.o 
 $ARDUINO_TOOLS/avr-ar rcs core.a HardwareSerial3.cpp.o 
 $ARDUINO_TOOLS/avr-ar rcs core.a new.cpp.o 
-$ARDUINO_TOOLS/avr-gcc -w -Os -Wl,--gc-sections -mmcu=atmega328p -o light.cpp.elf light.cpp.o Adafruit_NeoPixel/Adafruit_NeoPixel.cpp.o core.a -L/tmp/build5324131886960530268.tmp -lm 
+$ARDUINO_TOOLS/avr-gcc -w -Os -Wl,--gc-sections -mmcu=atmega328p -o light.cpp.elf light.cpp.o Adafruit_NeoPixel.cpp.o core.a -L/tmp/build5324131886960530268.tmp -lm 
 $ARDUINO_TOOLS/avr-objcopy -O ihex -j .eeprom --set-section-flags=.eeprom=alloc,load --no-change-warnings --change-section-lma .eeprom=0 light.cpp.elf light.cpp.eep 
 $ARDUINO_TOOLS/avr-objcopy -O ihex -R .eeprom light.cpp.elf light.cpp.hex 
 
