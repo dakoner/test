@@ -60,4 +60,4 @@ $ARDUINO_TOOLS/avr-gcc -w -Os -Wl,--gc-sections -mmcu=atmega328p -o light.cpp.el
 $ARDUINO_TOOLS/avr-objcopy -O ihex -j .eeprom --set-section-flags=.eeprom=alloc,load --no-change-warnings --change-section-lma .eeprom=0 light.cpp.elf light.cpp.eep 
 $ARDUINO_TOOLS/avr-objcopy -O ihex -R .eeprom light.cpp.elf light.cpp.hex 
 
-$ARDUINO_TOOLS/avrdude -C$ARDUINO_ROOT/hardware/tools/avr/etc/avrdude.conf -v -v -v -v -patmega328p -carduino -P/dev/ttyACM1 -b115200 -D -Uflash:w:light.cpp.hex:i 
+$ARDUINO_TOOLS/avrdude -C$ARDUINO_ROOT/hardware/tools/avr/etc/avrdude.conf -v -v -v -v -patmega328p -carduino -P/dev/ttyACM0 -b115200 -D -Uflash:w:light.cpp.hex:i 

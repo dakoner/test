@@ -7,7 +7,7 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_PIXELS, LEDPIN, NEO_GRB + NEO_KH
 
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
 
   strip.begin();
   strip.setBrightness(255);
@@ -27,7 +27,9 @@ void loop() {
     if (ret == -1) break;
     char c = char(ret);
     if (c == '\r') {
-      if (accum[0] == 'S') {
+      if (accum[0] == 'V') {
+	Serial.println("ArduinoNeoPixelShutter");
+      } else if (accum[0] == 'S') {
         Serial.print("R");
         Serial.print(red);
         Serial.print(" G");
@@ -55,8 +57,8 @@ void loop() {
 	  Serial.println(val);
 	}
       } else  {
-	Serial.print("Invalid color: ");
-	Serial.println(accum[0]);
+	Serial.print("Invalid command: ");
+	Serial.println(accum);
       }  
       accum = "";
     } else {
