@@ -5,21 +5,36 @@
 
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_PIXELS, LEDPIN, NEO_GRB + NEO_KHZ800);
 
-
-void setup() {
-  Serial.begin(9600);
-
-  strip.begin();
-  strip.setBrightness(255);
-  strip.show(); // Initialize all pixels to 'off'
-}
-String accum;
-
 int red = 255;
 int blue = 255;
 int green = 255;
+int brightness = 255;
 uint16_t pins = 65535;
-//int oldPot = 0;
+String accum;
+
+void draw() {
+  bool pixel = 0;
+  uint16_t pins_t = pins;
+  strip.setBrightness(brightness);
+  
+  for (uint16_t i = 0; i < NUM_PIXELS; i++) {
+    pixel = pins_t >> i & 0x1;
+    if (pixel) 
+      strip.setPixelColor(i, strip.Color(red, green, blue));
+    else
+      strip.setPixelColor(i, strip.Color(0, 0, 0));
+  }
+  strip.show();
+}
+
+
+void setup() {
+  Serial.begin(9600);
+  Serial.println("start sketch.");
+  accum.reserve(200);
+  strip.begin();
+  draw();
+}
 
 void loop() {
   while (Serial.available()) {
@@ -42,18 +57,30 @@ void loop() {
 	uint16_t val = accum.substring(1).toInt();
 	if (val >= 0 && val <= 65535) {
 	  pins = val;
+	  Serial.println("OK");
 	} else {
 	  Serial.print("Invalid pin value: ");
 	  Serial.println(val);
 	}
-      } else if (accum[0] == 'R' || accum[0] == 'G' || accum[0] == 'B') {
+      } else if (accum[0] == 'I') {
+	int val = accum.substring(1).toInt();
+	if (val >= 0 && val <= 255) {
+	  brightness = val;
+	  Serial.println("OK");
+	} else {
+	  Serial.print("Invalid brightness value: ");
+	  Serial.println(val);
+	}
+      }
+      else if (accum[0] == 'R' || accum[0] == 'G' || accum[0] == 'B') {
 	int val = accum.substring(1).toInt();
 	if (val >= 0 && val <= 255) {
 	  if (accum[0] == 'R') red = val;
 	  else if (accum[0] == 'G') green = val;
 	  else if (accum[0] == 'B') blue = val;
+	  Serial.println("OK");
 	} else {
-	  Serial.print("Invalid brightness value: ");
+	  Serial.print("Invalid color value: ");
 	  Serial.println(val);
 	}
       } else  {
@@ -61,19 +88,9 @@ void loop() {
 	Serial.println(accum);
       }  
       accum = "";
+      draw();
     } else {
       accum += char(ret);
     }
-    
   }
-  bool pixel = 0;
-  uint16_t pins_t = pins;
-  for (uint16_t i = 0; i < NUM_PIXELS; i++) {
-    pixel = pins_t >>= 1;
-    if (pixel) 
-      strip.setPixelColor(i, strip.Color(red, green, blue));
-    else
-      strip.setPixelColor(i, strip.Color(0, 0, 0));
-  }
-  strip.show();
 }
