@@ -25,6 +25,7 @@
 
 const char* g_DeviceNameArduinoHub = "ArduinoNeoPixel-Hub";
 const char* g_DeviceNameArduinoShutter = "ArduinoNeoPixel-Shutter";
+const char* g_versionProp = "Version";
 
 
 // static lock
@@ -114,16 +115,7 @@ int CArduinoHub::GetControllerVersion(int& version)
   if(!portAvailable_)
     return ERR_NO_PORT_SET;
 
-  // ret = SendSerialCommand(port_.c_str(), "V", "\r");
-  // if (ret != DEVICE_OK)
-  //     return ret;
-  //  LogMessage("XXXX waiting for answer:");
-
   std::string answer;
-  //  ret = GetSerialAnswer(port_.c_str(), "\r", answer);
-  //  if (ret != DEVICE_OK) {
-  //    LogMessage("XXXX got error:");
-  //  }
 
   ret = SendSerialCommand(port_.c_str(), "V", "\r");
   if (ret != DEVICE_OK)
@@ -234,14 +226,14 @@ int CArduinoHub::Initialize()
    CPropertyAction* pAct = new CPropertyAction(this, &CArduinoHub::OnVersion);
    std::ostringstream sversion;
    sversion << version_;
-   // CreateProperty(g_versionProp, sversion.str().c_str(), MM::Integer, true, pAct);
+   CreateProperty(g_versionProp, sversion.str().c_str(), MM::Integer, true, pAct);
 
    ret = UpdateStatus();
    if (ret != DEVICE_OK)
       return ret;
 
-   // turn off verbose serial debug messages
-   // GetCoreCallback()->SetDeviceProperty(port_.c_str(), "Verbose", "0");
+   // turn on verbose serial debug messages
+   GetCoreCallback()->SetDeviceProperty(port_.c_str(), "Verbose", "1");
 
    initialized_ = true;
    return DEVICE_OK;
