@@ -72,8 +72,6 @@ CArduinoHub::CArduinoHub() :
    shutterState_ (0)
 {
    portAvailable_ = false;
-   invertedLogic_ = false;
-   timedOutputActive_ = false;
 
    InitializeDefaultErrorMessages();
 
@@ -412,42 +410,6 @@ int CArduinoShutter::Fire(double /*deltaT*/)
    return DEVICE_UNSUPPORTED_COMMAND;
 }
 
-int CArduinoShutter::WriteToPort(long value)
-{
-   CArduinoHub* hub = static_cast<CArduinoHub*>(GetParentHub());
-   if (!hub || !hub->IsPortAvailable())
-      return ERR_NO_PORT_SET;
-
-   MMThreadGuard myLock(hub->GetLock());
-
-   value = 63 & value;
-   if (hub->IsLogicInverted())
-      value = ~value;
-
-   hub->PurgeComPortH();
-
-   unsigned char command[2];
-   command[0] = 1;
-   command[1] = (unsigned char) value;
-   int ret = hub->WriteToComPortH((const unsigned char*) command, 2);
-   if (ret != DEVICE_OK)
-      return ret;
-
-   MM::MMTime startTime = GetCurrentMMTime();
-   unsigned long bytesRead = 0;
-   unsigned char answer[1];
-   while ((bytesRead < 1) && ( (GetCurrentMMTime() - startTime).getMsec() < 250)) {
-      ret = hub->ReadFromComPortH(answer, 1, bytesRead);
-      if (ret != DEVICE_OK)
-         return ret;
-   }
-   if (answer[0] != 1)
-      return ERR_COMMUNICATION;
-
-   hub->SetTimedOutput(false);
-
-   return DEVICE_OK;
-}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Action handlers
