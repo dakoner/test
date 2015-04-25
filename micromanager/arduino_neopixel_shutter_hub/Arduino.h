@@ -67,11 +67,13 @@ public:
    void SetShutterState(unsigned state) {shutterState_ = state;}
    unsigned GetShutterState() {return shutterState_;}
    void SetRedBrightness(int red) {red_ = red;}
-   unsigned GetRedBrightness() {return red_;}
+   int GetRedBrightness() {return red_;}
    void SetGreenBrightness(int green) {green_ = green;}
-   unsigned GetGreenBrightness() {return green_;}
+   int GetGreenBrightness() {return green_;}
    void SetBlueBrightness(int blue) {blue_ = blue;}
-   unsigned GetBlueBrightness() {return blue_;}
+   int GetBlueBrightness() {return blue_;}
+   void SetMulti(int multi) {multi_ = multi;}
+   int GetMulti() {return multi_;}
 
 private:
    int GetControllerVersion(int&);
@@ -79,11 +81,12 @@ private:
    bool initialized_;
    bool portAvailable_;
    int version_;
+   static MMThreadLock lock_;
+   unsigned shutterState_;
    int red_;
    int blue_;
    int green_;
-   static MMThreadLock lock_;
-   unsigned shutterState_;
+   int multi_;
 };
 
 class CArduinoShutter : public CShutterBase<CArduinoShutter>  
@@ -111,6 +114,7 @@ public:
    int OnRedBrightness(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnGreenBrightness(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnBlueBrightness(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnMulti(MM::PropertyBase* pProp, MM::ActionType eAct);
 
 private:
    int WriteToPort(long lnValue);

@@ -69,7 +69,8 @@ MODULE_API void DeleteDevice(MM::Device* pDevice)
 CArduinoHub::CArduinoHub() :
    initialized_ (false),
    shutterState_ (0),
-   red_(255), blue_(255), green_(255)
+   red_(255), blue_(255), green_(255),
+   multi_(8)
 {
    portAvailable_ = false;
 
@@ -362,6 +363,11 @@ int CArduinoShutter::Initialize()
    SetPropertyLimits("Blue brightness", 0, 255);
    if (ret != DEVICE_OK)
       return ret;
+   pAct = new CPropertyAction(this, &CArduinoShutter::OnMulti);
+   ret = CreateProperty("Multi", "8", MM::Integer, false, pAct);
+   SetPropertyLimits("Multi", 0, 1<<3);
+   if (ret != DEVICE_OK)
+      return ret;
 
 
    // set shutter into the off state
@@ -451,6 +457,40 @@ int CArduinoShutter::OnOnOff(MM::PropertyBase* pProp, MM::ActionType eAct)
 	int ret = hub->WriteToComPortH((const unsigned char*) command.c_str(), command.length());
 	if (ret != DEVICE_OK)
 	  return ret;
+	if (hub->GetMulti() & 0x1) {
+	  std::string command = "R" + std::to_string(hub->GetRedBrightness()) + "\r";
+	  int ret = hub->WriteToComPortH((const unsigned char*) command.c_str(), command.length());
+	  if (ret != DEVICE_OK)
+	    return ret;
+	} else {
+	  std::string command = "R0\r";
+	  int ret = hub->WriteToComPortH((const unsigned char*) command.c_str(), command.length());
+	  if (ret != DEVICE_OK)
+	    return ret;
+	}
+
+	if (hub->GetMulti() & 0x2) {
+	  std::string command = "G" + std::to_string(hub->GetGreenBrightness()) + "\r";
+	  int ret = hub->WriteToComPortH((const unsigned char*) command.c_str(), command.length());
+	  if (ret != DEVICE_OK)
+	    return ret;
+	} else {
+	  std::string command = "G0\r";
+	  int ret = hub->WriteToComPortH((const unsigned char*) command.c_str(), command.length());
+	  if (ret != DEVICE_OK)
+	    return ret;
+	}
+	if (hub->GetMulti() & 0x4) {
+	  std::string command = "B" + std::to_string(hub->GetBlueBrightness()) + "\r";
+	  int ret = hub->WriteToComPortH((const unsigned char*) command.c_str(), command.length());
+	  if (ret != DEVICE_OK)
+	    return ret;
+	} else {
+	  std::string command = "B0\r";
+	  int ret = hub->WriteToComPortH((const unsigned char*) command.c_str(), command.length());
+	  if (ret != DEVICE_OK)
+	    return ret;
+	}
       }
       hub->SetShutterState(pos);
       changedTime_ = GetCurrentMMTime();
@@ -520,6 +560,23 @@ int CArduinoShutter::OnBlueBrightness(MM::PropertyBase* pProp, MM::ActionType eA
       if (ret != DEVICE_OK)
 	return ret;
       hub->SetBlueBrightness(pos);
+   }
+   return DEVICE_OK;
+}
+
+int CArduinoShutter::OnMulti(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+   CArduinoHub* hub = static_cast<CArduinoHub*>(GetParentHub());
+   if (eAct == MM::BeforeGet)
+   {
+      // use cached state
+      pProp->Set((long)hub->GetMulti());
+   }
+   else if (eAct == MM::AfterSet)
+   {
+      long pos;
+      pProp->Get(pos);
+      hub->SetMulti(pos);
    }
    return DEVICE_OK;
 }
