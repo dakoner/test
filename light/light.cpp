@@ -30,7 +30,6 @@ void draw() {
 
 void setup() {
   Serial.begin(9600);
-  Serial.println("start sketch.");
   accum.reserve(200);
   strip.begin();
   draw();

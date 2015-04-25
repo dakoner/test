@@ -109,24 +109,21 @@ bool CArduinoHub::Busy()
 int CArduinoHub::GetControllerVersion(int& version)
 {
    int ret = DEVICE_OK;
-   unsigned char command[2];
-   command[0] = '\r';
-   command[1] = '\r';
    version = 0;
 
   if(!portAvailable_)
     return ERR_NO_PORT_SET;
 
-  ret = SendSerialCommand(port_.c_str(), "V", "\r");
-  if (ret != DEVICE_OK)
-      return ret;
-   LogMessage("XXXX waiting for answer:");
+  // ret = SendSerialCommand(port_.c_str(), "V", "\r");
+  // if (ret != DEVICE_OK)
+  //     return ret;
+  //  LogMessage("XXXX waiting for answer:");
 
-   std::string answer;
-   ret = GetSerialAnswer(port_.c_str(), "\r", answer);
-   if (ret != DEVICE_OK) {
-     LogMessage("XXXX got error:");
-   }
+  std::string answer;
+  //  ret = GetSerialAnswer(port_.c_str(), "\r", answer);
+  //  if (ret != DEVICE_OK) {
+  //    LogMessage("XXXX got error:");
+  //  }
 
   ret = SendSerialCommand(port_.c_str(), "V", "\r");
   if (ret != DEVICE_OK)
@@ -183,7 +180,7 @@ MM::DeviceDetectionStatus CArduinoHub::DetectDevice(void)
          MM::Device* pS = GetCoreCallback()->GetDevice(this, port_.c_str());
          pS->Initialize();
          // The first second or so after opening the serial port, the Arduino is waiting for firmwareupgrades.  Simply sleep 2 seconds.
-         CDeviceUtils::SleepMs(1000);
+         CDeviceUtils::SleepMs(2000);
          MMThreadGuard myLock(lock_);
          PurgeComPort(port_.c_str());
          int v = 0;
@@ -221,7 +218,7 @@ int CArduinoHub::Initialize()
       return ret;
 
    // The first second or so after opening the serial port, the Arduino is waiting for firmwareupgrades.  Simply sleep 1 second.
-   CDeviceUtils::SleepMs(1000);
+   CDeviceUtils::SleepMs(2000);
 
    MMThreadGuard myLock(lock_);
 
