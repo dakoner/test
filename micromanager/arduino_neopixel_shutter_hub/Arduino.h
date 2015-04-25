@@ -65,9 +65,13 @@ public:
    }
    static MMThreadLock& GetLock() {return lock_;}
    void SetShutterState(unsigned state) {shutterState_ = state;}
-   void SetSwitchState(unsigned state) {switchState_ = state;}
    unsigned GetShutterState() {return shutterState_;}
-   unsigned GetSwitchState() {return switchState_;}
+   void SetRedBrightness(int red) {red_ = red;}
+   unsigned GetRedBrightness() {return red_;}
+   void SetGreenBrightness(int green) {green_ = green;}
+   unsigned GetGreenBrightness() {return green_;}
+   void SetBlueBrightness(int blue) {blue_ = blue;}
+   unsigned GetBlueBrightness() {return blue_;}
 
 private:
    int GetControllerVersion(int&);
@@ -75,8 +79,10 @@ private:
    bool initialized_;
    bool portAvailable_;
    int version_;
+   int red_;
+   int blue_;
+   int green_;
    static MMThreadLock lock_;
-   unsigned switchState_;
    unsigned shutterState_;
 };
 
@@ -102,6 +108,9 @@ public:
    // action interface
    // ----------------
    int OnOnOff(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnRedBrightness(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnGreenBrightness(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnBlueBrightness(MM::PropertyBase* pProp, MM::ActionType eAct);
 
 private:
    int WriteToPort(long lnValue);
