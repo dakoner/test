@@ -1,7 +1,7 @@
 #include "Adafruit_NeoPixel.h"
 
 #define LEDPIN 6
-#define NUM_PIXELS 16
+#define NUM_PIXELS 40
 
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_PIXELS, LEDPIN, NEO_GRB + NEO_KHZ800);
 
@@ -9,17 +9,15 @@ int red = 255;
 int blue = 255;
 int green = 255;
 int brightness = 255;
-uint16_t pins = 65535;
+bool pins[64];
 String accum;
 
 void draw() {
   bool pixel = 0;
-  uint16_t pins_t = pins;
   strip.setBrightness(brightness);
   
-  for (uint16_t i = 0; i < NUM_PIXELS; i++) {
-    pixel = pins_t >> i & 0x1;
-    if (pixel) 
+  for (uint64_t i = 0; i < NUM_PIXELS; i++) {
+    if (pins[i]) 
       strip.setPixelColor(i, strip.Color(red, green, blue));
     else
       strip.setPixelColor(i, strip.Color(0, 0, 0));
@@ -32,6 +30,9 @@ void setup() {
   Serial.begin(9600);
   accum.reserve(200);
   strip.begin();
+  for (int i = 0; i < NUM_PIXELS; ++i) {
+    pins[i] = true;
+  }
   draw();
 }
 
@@ -49,18 +50,13 @@ void loop() {
         Serial.print(" G");
         Serial.print(green);
         Serial.print(" B");
-        Serial.print(blue);
-        Serial.print(" S");
-        Serial.println(pins);
+        Serial.println(blue);
       } else if (accum[0] == 'P') {
-	uint16_t val = accum.substring(1).toInt();
-	if (val >= 0 && val <= 65535) {
-	  pins = val;
-	  Serial.println("OK");
-	} else {
-	  Serial.print("Invalid pin value: ");
-	  Serial.println(val);
-	}
+        for (int i = 0; i < NUM_PIXELS; i++) { 
+          bool pin = accum.charAt(i+1) == '1' ? 1 : 0;
+          pins[i] = pin;
+       }
+        Serial.println("OK");
       } else if (accum[0] == 'I') {
 	int val = accum.substring(1).toInt();
 	if (val >= 0 && val <= 255) {
