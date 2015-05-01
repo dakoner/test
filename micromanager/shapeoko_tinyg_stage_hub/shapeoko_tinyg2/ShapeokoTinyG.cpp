@@ -228,7 +228,16 @@ int ShapeokoTinyGHub::Initialize()
   PurgeComPortH();
 
   string command = "G90";
-  LogMessage("Writing relative mode to com port");
+  LogMessage("Writing absolute mode to com port");
+  LogMessage(command);
+  ret = SendCommandNoResponse(command);
+  if (ret != DEVICE_OK)
+    return ret;
+
+  PurgeComPortH();
+
+  string command = "G92";
+  LogMessage("Writing current location as origin.");
   LogMessage(command);
   ret = SendCommandNoResponse(command);
   if (ret != DEVICE_OK)
