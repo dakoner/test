@@ -16,7 +16,8 @@ import MMCorePy
 # DEVICE = ['Camera', 'DemoCamera', 'DCam']
 # DEVICE = ['Camera', 'OpenCVgrabber', 'OpenCVgrabber']
 DEVICE = ['Camera', 'video4linux2', 'Video4Linux2']
-SHUTTER = ['Shutter', 'ArduinoNeoPixel', 'ArduinoNeoPixel-Shutter']
+SHUTTERHUB = ['ArduinoNeoPixel-Hub', 'ArduinoNeoPixel', 'ArduinoNeoPixel-Hub']
+SHUTTER = ['ArduinoNeoPixel-Shutter', 'ArduinoNeoPixel', 'ArduinoNeoPixel-Shutter']
 # DEVICE = ['Camera', "BaumerOptronic", "BaumerOptronic"]
 
 
@@ -25,24 +26,17 @@ if __name__ == '__main__':
     mmc.enableStderrLog(True)
     mmc.enableDebugLog(True)
 
+    mmc.loadSystemConfiguration("test.cfg")
 
-    mmc.loadDevice(*SHUTTER)
-    devlabel = 'Shutter'
-    # print mmc.setShutterDevice(devlabel)
-    print('getDeviceType: %s') % mmc.getDeviceType(devlabel)
-    print('getDeviceDescription: %s') % mmc.getDeviceDescription(devlabel)
-    print('getDeviceLibrary: %s') % mmc.getDeviceLibrary(devlabel)
+    mmc.setProperty("ArduinoNeoPixel-Shutter", 'Intensity', '25')
 
     # mmc.setCircularBufferMemoryFootprint(100)
-    mmc.loadDevice(*DEVICE)
-    mmc.initializeDevice(DEVICE[0])
-    mmc.setCameraDevice(DEVICE[0])
     # mmc.setProperty(DEVICE[0], 'PixelType', '32bitRGB')
 
     cv2.namedWindow('Video')
     mmc.startContinuousSequenceAcquisition(1)
-    fgbg = cv2.BackgroundSubtractorMOG2()
-    # fgbg = cv2.BackgroundSubtractorMOG(500, 6, 0.9, 1)
+    # fgbg = cv2.BackgroundSubtractorMOG2()
+    fgbg = cv2.BackgroundSubtractorMOG(500, 6, 0.9, 1)
 
     while True:
         img = mmc.getLastImage()
@@ -56,6 +50,7 @@ if __name__ == '__main__':
             # cv2.imshow('Video', bgr)
 
             img = mmc.getLastImage()
+            # cv2.imshow('Video', img)
             fgmask = fgbg.apply(img)
             draw = img & fgmask
             cv2.imshow('Video', draw)
