@@ -69,6 +69,7 @@ MODULE_API void DeleteDevice(MM::Device* pDevice)
 CArduinoHub::CArduinoHub() :
    initialized_ (false),
    shutterState_ (0),
+   intensity_(25),
    red_(255), blue_(255), green_(255),
    multi_(7)
 {
@@ -348,6 +349,12 @@ int CArduinoShutter::Initialize()
    if (ret != DEVICE_OK)
       return ret;
 
+   pAct = new CPropertyAction (this, &CArduinoShutter::OnIntensity);
+   ret = CreateProperty("Intensity", "255", MM::Integer, false, pAct);
+   SetPropertyLimits("Intensity", 0, 255);
+   if (ret != DEVICE_OK)
+      return ret;
+
    pAct = new CPropertyAction(this, &CArduinoShutter::OnRedBrightness);
    ret = CreateProperty("Red brightness", "255", MM::Integer, false, pAct);
    SetPropertyLimits("Red brightness", 0, 255);
@@ -446,6 +453,10 @@ int CArduinoShutter::OnOnOff(MM::PropertyBase* pProp, MM::ActionType eAct)
       long pos;
       pProp->Get(pos);
       int ret;
+      std::string command = "I" + std::to_string(hub->GetIntensity());
+      ret = hub->WriteToComPortH((const unsigned char*) command.c_str(), command.length());
+      if (ret != DEVICE_OK)
+	return ret;
       if (pos == 0) {
 	std::string command = "P0\r";
 	int ret = hub->WriteToComPortH((const unsigned char*) command.c_str(), command.length());
@@ -502,6 +513,26 @@ int CArduinoShutter::OnOnOff(MM::PropertyBase* pProp, MM::ActionType eAct)
 }
 
 
+int CArduinoShutter::OnIntensity(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+   CArduinoHub* hub = static_cast<CArduinoHub*>(GetParentHub());
+   if (eAct == MM::BeforeGet)
+   {
+      // use cached state
+      pProp->Set((long)hub->GetIntensity());
+   }
+   else if (eAct == MM::AfterSet)
+   {
+      long intensity;
+      pProp->Get(intensity);
+      std::string command = "I" + std::to_string(intensity) + "\r";
+      int ret = hub->WriteToComPortH((const unsigned char*) command.c_str(), command.length());
+      if (ret != DEVICE_OK)
+	return ret;
+      hub->SetIntensity(intensity);
+   }
+   return DEVICE_OK;
+}
 
 int CArduinoShutter::OnRedBrightness(MM::PropertyBase* pProp, MM::ActionType eAct)
 {

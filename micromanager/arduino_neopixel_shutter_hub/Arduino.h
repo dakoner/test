@@ -66,6 +66,8 @@ public:
    static MMThreadLock& GetLock() {return lock_;}
    void SetShutterState(unsigned state) {shutterState_ = state;}
    unsigned GetShutterState() {return shutterState_;}
+   void SetIntensity(int intensity) {intensity_ = intensity;}
+   int GetIntensity() {return intensity_;}
    void SetRedBrightness(int red) {red_ = red;}
    int GetRedBrightness() {return red_;}
    void SetGreenBrightness(int green) {green_ = green;}
@@ -83,6 +85,7 @@ private:
    int version_;
    static MMThreadLock lock_;
    unsigned shutterState_;
+   int intensity_;
    int red_;
    int blue_;
    int green_;
@@ -111,6 +114,7 @@ public:
    // action interface
    // ----------------
    int OnOnOff(MM::PropertyBase* pProp, MM::ActionType eAct);
+   int OnIntensity(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnRedBrightness(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnGreenBrightness(MM::PropertyBase* pProp, MM::ActionType eAct);
    int OnBlueBrightness(MM::PropertyBase* pProp, MM::ActionType eAct);
