@@ -70,7 +70,7 @@ CArduinoHub::CArduinoHub() :
    initialized_ (false),
    shutterState_ (0),
    red_(255), blue_(255), green_(255),
-   multi_(8)
+   multi_(7)
 {
    portAvailable_ = false;
 
@@ -344,7 +344,7 @@ int CArduinoShutter::Initialize()
    // OnOff
    // ------
    CPropertyAction* pAct = new CPropertyAction (this, &CArduinoShutter::OnOnOff);
-   int ret = CreateProperty("OnOff", "0", MM::Integer, false, pAct);
+   int ret = CreateProperty("OnOff", "1", MM::Integer, false, pAct);
    if (ret != DEVICE_OK)
       return ret;
 
@@ -453,11 +453,13 @@ int CArduinoShutter::OnOnOff(MM::PropertyBase* pProp, MM::ActionType eAct)
 	  return ret;
       }
       else {
-	std::string command = "P65535\r";
+	std::string command = "P111111111111111111111111111111111111111\r";
 	int ret = hub->WriteToComPortH((const unsigned char*) command.c_str(), command.length());
 	if (ret != DEVICE_OK)
 	  return ret;
-	if (hub->GetMulti() & 0x1) {
+	int multi = hub->GetMulti();
+	LogMessage("multi:");
+	if (multi & 0x1) {
 	  std::string command = "R" + std::to_string(hub->GetRedBrightness()) + "\r";
 	  int ret = hub->WriteToComPortH((const unsigned char*) command.c_str(), command.length());
 	  if (ret != DEVICE_OK)
@@ -469,7 +471,7 @@ int CArduinoShutter::OnOnOff(MM::PropertyBase* pProp, MM::ActionType eAct)
 	    return ret;
 	}
 
-	if (hub->GetMulti() & 0x2) {
+	if (multi & 0x2) {
 	  std::string command = "G" + std::to_string(hub->GetGreenBrightness()) + "\r";
 	  int ret = hub->WriteToComPortH((const unsigned char*) command.c_str(), command.length());
 	  if (ret != DEVICE_OK)
@@ -480,7 +482,7 @@ int CArduinoShutter::OnOnOff(MM::PropertyBase* pProp, MM::ActionType eAct)
 	  if (ret != DEVICE_OK)
 	    return ret;
 	}
-	if (hub->GetMulti() & 0x4) {
+	if (multi & 0x4) {
 	  std::string command = "B" + std::to_string(hub->GetBlueBrightness()) + "\r";
 	  int ret = hub->WriteToComPortH((const unsigned char*) command.c_str(), command.length());
 	  if (ret != DEVICE_OK)
