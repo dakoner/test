@@ -36,7 +36,7 @@ class MainWindow(QtGui.QMainWindow):
         self.timer.start(.04)
         self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.updateData) 
 
-        # self.fgbg = cv2.BackgroundSubtractorMOG(500, 6, 0.9, 1)
+        self.fgbg = cv2.BackgroundSubtractorMOG(500, 6, 0.9, 1)
         self.fgbg = cv2.BackgroundSubtractorMOG2()
         
 ## TODO(dek): run at shutdown
@@ -58,8 +58,8 @@ class MainWindow(QtGui.QMainWindow):
         self.prev = img
 
 
-        # # fgmask = self.fgbg.apply(img)
-        # # draw = img & fgmask
+        # fgmask = self.fgbg.apply(img)
+        # draw = img & fgmask
         self.image = QtGui.QImage(img.data, WIDTH, HEIGHT, QtGui.QImage.Format_RGB888)
         painter = QtGui.QPainter(self.image)
         blue = QtGui.QColor()
