@@ -147,7 +147,7 @@ int CShapeokoTinyGXYStage::SetPositionSteps(long x, long y)
   sprintf(buff, "G0 X%f Y%f", posX_um_/1000., posY_um_/1000.);
   std::string buffAsStdStr = buff;
   ShapeokoTinyGHub* pHub = static_cast<ShapeokoTinyGHub*>(GetParentHub());
-  int ret = pHub->SendMotionCommand(buffAsStdStr);
+  int ret = pHub->SendCommand(buffAsStdStr);
   if (ret != DEVICE_OK)
     return ret;
 

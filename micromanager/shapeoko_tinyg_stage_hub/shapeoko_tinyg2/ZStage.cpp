@@ -136,10 +136,12 @@ int CShapeokoTinyGZStage::SetPositionSteps(long steps)
   sprintf(buff, "G0 Z%f", posZ_um_/1000.);
   std::string buffAsStdStr = buff;
   ShapeokoTinyGHub* pHub = static_cast<ShapeokoTinyGHub*>(GetParentHub());
-  int ret = pHub->SendCommand(buffAsStdStr,buffAsStdStr);
+  int ret = pHub->SendCommand(buffAsStdStr);
   if (ret != DEVICE_OK)
     return ret;
-
+  ret = pHub->ReadResponse(buffAsStdStr);
+   if (ret != DEVICE_OK)
+    return ret;
   //ret = OnZStagePositionChanged(posZ_um_);
    
 
