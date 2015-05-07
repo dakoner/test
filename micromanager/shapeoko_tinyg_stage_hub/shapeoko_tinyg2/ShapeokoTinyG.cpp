@@ -151,6 +151,8 @@ int ShapeokoTinyGHub::Initialize()
   // pAct = new CPropertyAction (this, &MyShapeokoTinyg::OnSyncStep);
   // CreateProperty(g_SyncStepProp, "1.0", MM::Float, false, pAct);
 
+  CreateProperty("Status", "", MM::String, false);
+
 
   // ret = UpdateStatus();
   // if (ret != DEVICE_OK)
@@ -377,7 +379,7 @@ int ShapeokoTinyGHub::OnCommand(MM::PropertyBase* pProp, MM::ActionType pAct)
   return DEVICE_OK;
 }
 
-int ShapeokoTinyGHub::SendCommand(std::string command, float timeout, std::string terminator) 
+int ShapeokoTinyGHub::SendCommand(std::string command, std::string terminator) 
 {
   LogMessage("TinyG SendCommand");
   LogMessage("command=" + command);
@@ -386,7 +388,6 @@ int ShapeokoTinyGHub::SendCommand(std::string command, float timeout, std::strin
   // needs a lock because the other Thread will also use this function
   MMThreadGuard(this->executeLock_);
   int ret = DEVICE_OK;
-  SetAnswerTimeoutMs(timeout); //for normal command
 
   LogMessage("Write command.");
   ret = SetCommandComPortH(command.c_str(), terminator.c_str());
@@ -400,13 +401,16 @@ int ShapeokoTinyGHub::SendCommand(std::string command, float timeout, std::strin
 }
 
 
-int ShapeokoTinyGHub::ReadResponse(std::string &returnString)
+int ShapeokoTinyGHub::ReadResponse(std::string &returnString, float timeout)
 {
+  SetAnswerTimeoutMs(timeout); //for normal command
+  MMThreadGuard(this->executeLock_);
+
   std::string an;
   try
   {
 
-    int ret = GetSerialAnswerComPortH(an,"\r");
+    int ret = GetSerialAnswerComPortH(an,"\n\r");
     if (ret != DEVICE_OK)
     {
       LogMessage(std::string("answer get error!_"));
@@ -506,6 +510,8 @@ Type stringToNum(const std::string& str)
   return num;
 }
 
+std::string ShapeokoTinyGHub::GetState() { return status_; }
+
 int ShapeokoTinyGHub::GetStatus()
 {
   LogMessage("TinyG GetStatus");
@@ -515,15 +521,12 @@ int ShapeokoTinyGHub::GetStatus()
 
   if(!portAvailable_)
     return ERR_NO_PORT_SET;
-  // needs a lock because the other Thread will also use this function
-  MMThreadGuard(this->executeLock_);
 
   int ret = DEVICE_OK;
 
-  	  PurgeComPortH();
+  PurgeComPortH();
   LogMessage("Write command.");
   ret = SendCommand(cmd);
-  LogMessage("set command, ret=" + ret);
   if (ret != DEVICE_OK)
   {
     LogMessage("command write fail");
@@ -532,82 +535,64 @@ int ShapeokoTinyGHub::GetStatus()
 
 
   while(true) {
-    try
-    {
-      string an;
+    LogMessage("loop");
+    string an;
 
-      ret = ReadResponse(cmd);
-      if (ret != DEVICE_OK)
-      {
-        LogMessage(std::string("answer get error!_"));
-        return ret;
-      }
-      LogMessage("answer:");
-      LogMessage(an);
-      if (an.length() <1)
-        return DEVICE_ERR;
-      
-      if (an.find("Machine state:") != std::string::npos) {
-        break;
-      }
-    }
-    catch(...)
+    ret = ReadResponse(an);
+    if (ret != DEVICE_OK)
     {
-      LogMessage("Exception in send command!");
+      LogMessage(std::string("answer get error!_"));
+      return ret;
+    }
+    LogMessage("answer:");
+    LogMessage(an);
+    if (an.length() <1) {
+      LogMessage("device error.");
       return DEVICE_ERR;
     }
-  }
-  LogMessage("ReturnString:");
-  LogMessage(returnString);
-
-  std::vector<std::string> tokenInput;
-  //      char* pEnd;
-  CDeviceUtils::Tokenize(returnString, tokenInput, "\r\n");
-  for(std::vector<std::string>::iterator i = tokenInput.begin(); i != tokenInput.end(); ++i) {
-    LogMessage("Token input: ");
-    LogMessage(*i);
-    string x;
-    if (i->substr(0, 10) == "X position") {
-      x = i->substr(21,10);
+    std::string x;
+    if (an.substr(0, 10) == "X position") {
+      x = an.substr(21,10);
       std::vector<std::string> spl;
       spl = split(x, ' ');
       MPos[0] = stringToNum<double>(spl[0]);
     }
-    if (i->substr(0, 10) == "Y position") {
-      x = i->substr(21,10);
+    else if (an.substr(0, 10) == "Y position") {
+      x = an.substr(21,10);
       std::vector<std::string> spl;
       spl = split(x, ' ');
       MPos[1] = stringToNum<double>(spl[0]);
     }
-    if (i->substr(0, 10) == "Z position") {
-      x = i->substr(21,10);
+    else if (an.substr(0, 10) == "Z position") {
+      x = an.substr(21,10);
       std::vector<std::string> spl;
       spl = split(x, ' ');
       MPos[2] = stringToNum<double>(spl[0]);
     }
-    if (i->substr(0, 9) == "Velocity:") {
-      x = i->substr(21,10);
+    else if (an.substr(0, 9) == "Velocity:") {
+      x = an.substr(21,10);
     }
-    if (i->substr(0, 6) == "Units:") {
+    else if (an.substr(0, 6) == "Units:") {
       // TODO(dek): correct these if wrong.
-      x = i->substr(21,10);
+      x = an.substr(21,10);
     }
-    if (i->substr(0, 18) == "Coordinate system:") {
-      x = i->substr(21,10);
+    else if (an.substr(0, 18) == "Coordinate system:") {
+      x = an.substr(21,10);
     }
-    if (i->substr(0, 14) == "Distance mode:") {
+    else if (an.substr(0, 14) == "Distance mode:") {
       // TODO(dek): correct these if wrong.
-      x = i->substr(21,10);
+      x = an.substr(21,10);
     }
-    if (i->substr(0, 14) == "Machine state:") {
-      x = i->substr(21,10);
+    else if (an.substr(0, 14) == "Machine state:") {
+      x = an.substr(21,10);
+      status_ = x;
       SetProperty("Status",x.c_str());
+      break;
     }
-    if (!x.empty()) {
-      LogMessage("Parsed line:");
-      LogMessage(x);
+    else {
+      LogMessage("Saw unexpected line:");
+      LogMessage(an);
     }
-
   }
   return DEVICE_OK;
 }

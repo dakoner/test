@@ -108,16 +108,15 @@ int CShapeokoTinyGXYStage::Shutdown()
 bool CShapeokoTinyGXYStage::Busy()
 {
   LogMessage("XYStage: Busy called");
-  if (timeOutTimer_ == 0)
+  ShapeokoTinyGHub* pHub = static_cast<ShapeokoTinyGHub*>(GetParentHub());
+  std::string status = pHub->GetState();
+
+  LogMessage("Status is:");
+  LogMessage(status);
+  if (status == "Ready" || status == "Stop")
     return false;
-  if (timeOutTimer_->expired(GetCurrentMMTime()))
-  {
-    // delete(timeOutTimer_);
-    LogMessage("XYStage: Busy return false");
-    return false;
-  }
-  LogMessage("XYStage: Busy return true");
-  return true;
+  else
+    return true;
 }
 
 double CShapeokoTinyGXYStage::GetStepSize() {return stepSize_um_;}
@@ -125,20 +124,11 @@ double CShapeokoTinyGXYStage::GetStepSize() {return stepSize_um_;}
 int CShapeokoTinyGXYStage::SetPositionSteps(long x, long y)
 {
   LogMessage("XYStage: SetPositionSteps");
-  if (timeOutTimer_ != 0)
-  {
-    if (!timeOutTimer_->expired(GetCurrentMMTime()))
-      return ERR_STAGE_MOVING;
-    delete (timeOutTimer_);
-  }
   double newPosX = x * stepSize_um_;
   double newPosY = y * stepSize_um_;
   double difX = newPosX - posX_um_;
   double difY = newPosY - posY_um_;
   double distance = sqrt( (difX * difX) + (difY * difY) );
-  // long timeOut = (long) (distance / velocity_);
-  long timeOut = 1000;
-  timeOutTimer_ = new MM::TimeoutMs(GetCurrentMMTime(),  timeOut);
   posX_um_ = x * stepSize_um_;
   posY_um_ = y * stepSize_um_;
 
