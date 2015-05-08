@@ -69,7 +69,7 @@ MODULE_API void DeleteDevice(MM::Device* pDevice)
 CArduinoHub::CArduinoHub() :
    initialized_ (false),
    shutterState_ (0),
-   intensity_(25),
+   intensity_(255),
    red_(255), blue_(255), green_(255),
    multi_(7)
 {
@@ -453,7 +453,7 @@ int CArduinoShutter::OnOnOff(MM::PropertyBase* pProp, MM::ActionType eAct)
       long pos;
       pProp->Get(pos);
       int ret;
-      std::string command = "I" + std::to_string(hub->GetIntensity());
+      std::string command = "I" + std::to_string((long long)hub->GetIntensity());
       ret = hub->WriteToComPortH((const unsigned char*) command.c_str(), command.length());
       if (ret != DEVICE_OK)
 	return ret;
@@ -471,7 +471,7 @@ int CArduinoShutter::OnOnOff(MM::PropertyBase* pProp, MM::ActionType eAct)
 	int multi = hub->GetMulti();
 	LogMessage("multi:");
 	if (multi & 0x1) {
-	  std::string command = "R" + std::to_string(hub->GetRedBrightness()) + "\r";
+	  std::string command = "R" + std::to_string((long long)hub->GetRedBrightness()) + "\r";
 	  int ret = hub->WriteToComPortH((const unsigned char*) command.c_str(), command.length());
 	  if (ret != DEVICE_OK)
 	    return ret;
@@ -483,7 +483,7 @@ int CArduinoShutter::OnOnOff(MM::PropertyBase* pProp, MM::ActionType eAct)
 	}
 
 	if (multi & 0x2) {
-	  std::string command = "G" + std::to_string(hub->GetGreenBrightness()) + "\r";
+	  std::string command = "G" + std::to_string((long long)hub->GetGreenBrightness()) + "\r";
 	  int ret = hub->WriteToComPortH((const unsigned char*) command.c_str(), command.length());
 	  if (ret != DEVICE_OK)
 	    return ret;
@@ -494,7 +494,7 @@ int CArduinoShutter::OnOnOff(MM::PropertyBase* pProp, MM::ActionType eAct)
 	    return ret;
 	}
 	if (multi & 0x4) {
-	  std::string command = "B" + std::to_string(hub->GetBlueBrightness()) + "\r";
+	  std::string command = "B" + std::to_string((long long)hub->GetBlueBrightness()) + "\r";
 	  int ret = hub->WriteToComPortH((const unsigned char*) command.c_str(), command.length());
 	  if (ret != DEVICE_OK)
 	    return ret;
@@ -525,7 +525,7 @@ int CArduinoShutter::OnIntensity(MM::PropertyBase* pProp, MM::ActionType eAct)
    {
       long intensity;
       pProp->Get(intensity);
-      std::string command = "I" + std::to_string(intensity) + "\r";
+      std::string command = "I" + std::to_string((long long)intensity) + "\r";
       int ret = hub->WriteToComPortH((const unsigned char*) command.c_str(), command.length());
       if (ret != DEVICE_OK)
 	return ret;
@@ -546,7 +546,7 @@ int CArduinoShutter::OnRedBrightness(MM::PropertyBase* pProp, MM::ActionType eAc
    {
       long pos;
       pProp->Get(pos);
-      std::string command = "R" + std::to_string(pos) + "\r";
+      std::string command = "R" + std::to_string((long long)pos) + "\r";
       int ret = hub->WriteToComPortH((const unsigned char*) command.c_str(), command.length());
       if (ret != DEVICE_OK)
 	return ret;
@@ -567,7 +567,7 @@ int CArduinoShutter::OnGreenBrightness(MM::PropertyBase* pProp, MM::ActionType e
    {
       long pos;
       pProp->Get(pos);
-      std::string command = "G" + std::to_string(pos) + "\r";
+      std::string command = "G" + std::to_string((long long)pos) + "\r";
       int ret = hub->WriteToComPortH((const unsigned char*) command.c_str(), command.length());
       if (ret != DEVICE_OK)
 	return ret;
@@ -588,7 +588,7 @@ int CArduinoShutter::OnBlueBrightness(MM::PropertyBase* pProp, MM::ActionType eA
    {
       long pos;
       pProp->Get(pos);
-      std::string command = "B" + std::to_string(pos) + "\r";
+      std::string command = "B" + std::to_string((long long)pos) + "\r";
       int ret = hub->WriteToComPortH((const unsigned char*) command.c_str(), command.length());
       if (ret != DEVICE_OK)
 	return ret;
