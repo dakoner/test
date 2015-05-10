@@ -151,6 +151,8 @@ int ShapeokoTinyGHub::Initialize()
   // pAct = new CPropertyAction (this, &MyShapeokoTinyg::OnSyncStep);
   // CreateProperty(g_SyncStepProp, "1.0", MM::Float, false, pAct);
 
+  CreateProperty("Status", "", MM::String, false);
+
 
   // ret = UpdateStatus();
   // if (ret != DEVICE_OK)
@@ -170,8 +172,7 @@ int ShapeokoTinyGHub::Initialize()
   // synchronize all properties
   // --------------------------
 
-  PurgeComPortH();
-  std::string expected; 
+  
   /*
   LogMessage(std::string("Sending reset!"));
   SetAnswerTimeoutMs(10000.0);
@@ -192,10 +193,15 @@ int ShapeokoTinyGHub::Initialize()
     return DEVICE_ERR;
   }
 
-  PurgeComPortH();
+
   */
+  PurgeComPortH();
+  std::string expected;
   std::string answer;
-  ret = SendConfigCommand("$ee=0", answer);
+  ret = SendCommand("$ee=0");
+  if (ret != DEVICE_OK)
+    return ret;
+  ret = ReadResponse(answer);
   if (ret != DEVICE_OK)
     return ret;
   expected = "[ee]";
@@ -206,7 +212,10 @@ int ShapeokoTinyGHub::Initialize()
 
   PurgeComPortH();
 
-  ret = SendConfigCommand("$tv=0", answer);
+  ret = SendCommand("$tv=0");
+  if (ret != DEVICE_OK)
+    return ret;
+  ret = ReadResponse(answer);
   if (ret != DEVICE_OK)
     return ret;
   expected = "[tv]";
@@ -230,16 +239,16 @@ int ShapeokoTinyGHub::Initialize()
   string command = "G90";
   LogMessage("Writing absolute mode to com port");
   LogMessage(command);
-  ret = SendCommandNoResponse(command);
+  ret = SendCommand(command);
   if (ret != DEVICE_OK)
     return ret;
 
   PurgeComPortH();
 
-  string command = "G92";
+  command = "G92";
   LogMessage("Writing current location as origin.");
   LogMessage(command);
-  ret = SendCommandNoResponse(command);
+  ret = SendCommand(command);
   if (ret != DEVICE_OK)
     return ret;
 
@@ -248,6 +257,8 @@ int ShapeokoTinyGHub::Initialize()
   ret = GetStatus();
   if (ret != DEVICE_OK)
     return ret;
+
+    PurgeComPortH();
 
   ret = UpdateStatus();
   if (ret != DEVICE_OK)
@@ -274,7 +285,10 @@ int ShapeokoTinyGHub::GetControllerVersion(string& version)
   LogMessage("Writing to com port");
   LogMessage(command);
   std::string answer;
-  ret = SendCommand(command, answer);
+  ret = SendCommand(command);
+  if (ret != DEVICE_OK)
+    return ret;
+  ret = ReadResponse(answer);
   if (ret != DEVICE_OK)
     return ret;
   LogMessage("Got answer:");
@@ -351,7 +365,12 @@ int ShapeokoTinyGHub::OnCommand(MM::PropertyBase* pProp, MM::ActionType pAct)
     pProp->Get(cmd);
     if(cmd.compare(commandResult_) ==0)  // command result still there
       return DEVICE_OK;
-    int ret = SendCommand(cmd,commandResult_);
+    int ret = SendCommand(cmd);
+    if(DEVICE_OK != ret){
+      commandResult_.assign("Error!");
+      return DEVICE_ERR;
+    }
+	ret = ReadResponse(commandResult_);
     if(DEVICE_OK != ret){
       commandResult_.assign("Error!");
       return DEVICE_ERR;
@@ -360,7 +379,7 @@ int ShapeokoTinyGHub::OnCommand(MM::PropertyBase* pProp, MM::ActionType pAct)
   return DEVICE_OK;
 }
 
-int ShapeokoTinyGHub::SendCommand(std::string command, std::string &returnString)
+int ShapeokoTinyGHub::SendCommand(std::string command, std::string terminator) 
 {
   LogMessage("TinyG SendCommand");
   LogMessage("command=" + command);
@@ -368,23 +387,30 @@ int ShapeokoTinyGHub::SendCommand(std::string command, std::string &returnString
     return ERR_NO_PORT_SET;
   // needs a lock because the other Thread will also use this function
   MMThreadGuard(this->executeLock_);
-  PurgeComPortH();
   int ret = DEVICE_OK;
-  SetAnswerTimeoutMs(300.0); //for normal command
 
   LogMessage("Write command.");
-  ret = SetCommandComPortH(command.c_str(),"\r");
+  ret = SetCommandComPortH(command.c_str(), terminator.c_str());
   LogMessage("set command, ret=" + ret);
   if (ret != DEVICE_OK)
   {
     LogMessage("command write fail");
     return ret;
   }
+  return ret;
+}
+
+
+int ShapeokoTinyGHub::ReadResponse(std::string &returnString, float timeout)
+{
+  SetAnswerTimeoutMs(timeout); //for normal command
+  MMThreadGuard(this->executeLock_);
+
   std::string an;
   try
   {
 
-    ret = GetSerialAnswerComPortH(an,"\r");
+    int ret = GetSerialAnswerComPortH(an,"\n\r");
     if (ret != DEVICE_OK)
     {
       LogMessage(std::string("answer get error!_"));
@@ -402,124 +428,6 @@ int ShapeokoTinyGHub::SendCommand(std::string command, std::string &returnString
   return DEVICE_OK;
 }
 
-int ShapeokoTinyGHub::SendMotionCommand(std::string command)
-{
-  LogMessage("TinyG SendMotionCommand");
-  LogMessage("command=" + command);
-  if(!portAvailable_)
-    return ERR_NO_PORT_SET;
-  // needs a lock because the other Thread will also use this function
-  MMThreadGuard(this->executeLock_);
-  PurgeComPortH();
-  int ret = DEVICE_OK;
-  SetAnswerTimeoutMs(300.0); //for normal command
-
-  LogMessage("Write command.");
-  ret = SetCommandComPortH(command.c_str(),"\r");
-  LogMessage("set command, ret=" + ret);
-  if (ret != DEVICE_OK)
-  {
-    LogMessage("command write fail");
-    return ret;
-  }
-  bool done = false;
-  while(!done) {
-    std::string an;
-    try
-    {
-      ret = GetSerialAnswerComPortH(an,"\r");
-      if (ret != DEVICE_OK)
-      {
-        LogMessage(std::string("answer get error!_"));
-        return ret;
-      }
-      LogMessage("answer:");
-      LogMessage(an);
-      std::vector<std::string> result = split(an, ',');
-      for(std::vector<std::string>::iterator item = result.begin(); item != result.end(); ++item) {
-        std::vector<std::string> p = split(*item, ':');
-        if (p[0] == "stat" && p[1] == "3\n") {
-          LogMessage("Move done.");
-          done = true;
-          break;
-        }
-      }
-    }
-    catch(...)
-    {
-      LogMessage("Exception in send command!");
-      return DEVICE_ERR;
-    }
-  }
-  return DEVICE_OK;
-}
-
-int ShapeokoTinyGHub::SendCommandNoResponse(std::string command)
-{
-  LogMessage("TinyG SendCommand");
-  LogMessage("command=" + command);
-  if(!portAvailable_)
-    return ERR_NO_PORT_SET;
-  // needs a lock because the other Thread will also use this function
-  MMThreadGuard(this->executeLock_);
-  PurgeComPortH();
-  int ret = DEVICE_OK;
-  SetAnswerTimeoutMs(300.0); //for normal command
-
-  LogMessage("Write command.");
-  ret = SetCommandComPortH(command.c_str(),"\r");
-  LogMessage("set command, ret=" + ret);
-  if (ret != DEVICE_OK)
-  {
-    LogMessage("command write fail");
-    return ret;
-  }
-  return DEVICE_OK;
-}
-
-
-int ShapeokoTinyGHub::SendConfigCommand(string command, string& answer)
-{
-  LogMessage("TinyG SendConfigCommand");
-  if(!portAvailable_)
-    return ERR_NO_PORT_SET;
-  // needs a lock because the other Thread will also use this function
-  MMThreadGuard(this->executeLock_);
-  PurgeComPortH();
-  int ret = DEVICE_OK;
-  SetAnswerTimeoutMs(10000.0); //for normal command
-
-  LogMessage("Writing command to com port");
-  LogMessage(command);
-  ret = SetCommandComPortH(command.c_str(),"\r");
-  LogMessage("set command, ret=" + ret);
-  if (ret != DEVICE_OK)
-  {
-    LogMessage("command write fail");
-    return ret;
-  }
-  try
-  {
-
-    LogMessage("Reading answer.");
-    ret = GetSerialAnswerComPortH(answer,"\r");
-    if (ret != DEVICE_OK)
-    {
-      LogMessage(std::string("answer get error!_"));
-      return ret;
-    }
-    LogMessage("answer:");
-    LogMessage(std::string(answer));
-    if (answer.length() <1)
-      return DEVICE_ERR;
-  }
-  catch(...)
-  {
-    LogMessage("Exception in send command!");
-    return DEVICE_ERR;
-  }
-  return DEVICE_OK;
-}
 
 MM::DeviceDetectionStatus ShapeokoTinyGHub::DetectDevice(void)
 {
@@ -554,7 +462,7 @@ MM::DeviceDetectionStatus ShapeokoTinyGHub::DetectDevice(void)
       GetCoreCallback()->SetDeviceProperty(port_.c_str(), "DelayBetweenCharsMs", "0");
       MM::Device* pS = GetCoreCallback()->GetDevice(this, port_.c_str());
       pS->Initialize();
-      // The first second or so after opening the serial port, the Arduino is waiting for firmwareupgrades.  Simply sleep 1 second.
+      // The first second or so after opening the serial port, the Arduino is waiting for firmwareupgrades.  Simply sleep 2 seconds.
       CDeviceUtils::SleepMs(2000);
       MMThreadGuard myLock(executeLock_);
       PurgeComPort(port_.c_str());
@@ -602,9 +510,8 @@ Type stringToNum(const std::string& str)
   return num;
 }
 
-// private and expects caller to:
-// 1. guard the port
-// 2. purge the port
+std::string ShapeokoTinyGHub::GetState() { return status_; }
+
 int ShapeokoTinyGHub::GetStatus()
 {
   LogMessage("TinyG GetStatus");
@@ -614,15 +521,12 @@ int ShapeokoTinyGHub::GetStatus()
 
   if(!portAvailable_)
     return ERR_NO_PORT_SET;
-  // needs a lock because the other Thread will also use this function
-  MMThreadGuard(this->executeLock_);
-  PurgeComPortH();
-  int ret = DEVICE_OK;
-  SetAnswerTimeoutMs(1000.0); //for normal command
 
+  int ret = DEVICE_OK;
+
+  PurgeComPortH();
   LogMessage("Write command.");
-  ret = SetCommandComPortH(cmd.c_str(),"\r");
-  LogMessage("set command, ret=" + ret);
+  ret = SendCommand(cmd);
   if (ret != DEVICE_OK)
   {
     LogMessage("command write fail");
@@ -631,81 +535,64 @@ int ShapeokoTinyGHub::GetStatus()
 
 
   while(true) {
-    try
+    LogMessage("loop");
+    string an;
+
+    ret = ReadResponse(an);
+    if (ret != DEVICE_OK)
     {
-      string an;
-      ret = GetSerialAnswerComPortH(an,"\r");
-      if (ret != DEVICE_OK)
-      {
-        LogMessage(std::string("answer get error!_"));
-        return ret;
-      }
-      LogMessage("answer:");
-      LogMessage(an);
-      if (an.length() <1)
-        return DEVICE_ERR;
-      returnString += an;
-      if (an.find("Machine state:") != std::string::npos) {
-        break;
-      }
+      LogMessage(std::string("answer get error!_"));
+      return ret;
     }
-    catch(...)
-    {
-      LogMessage("Exception in send command!");
+    LogMessage("answer:");
+    LogMessage(an);
+    if (an.length() <1) {
+      LogMessage("device error.");
       return DEVICE_ERR;
     }
-  }
-  LogMessage("ReturnString:");
-  LogMessage(returnString);
-
-  std::vector<std::string> tokenInput;
-  //      char* pEnd;
-  CDeviceUtils::Tokenize(returnString, tokenInput, "\r\n");
-  for(std::vector<std::string>::iterator i = tokenInput.begin(); i != tokenInput.end(); ++i) {
-    LogMessage("Token input: ");
-    LogMessage(*i);
-    string x;
-    if (i->substr(0, 10) == "X position") {
-      x = i->substr(21,10);
+    std::string x;
+    if (an.substr(0, 10) == "X position") {
+      x = an.substr(21,10);
       std::vector<std::string> spl;
       spl = split(x, ' ');
       MPos[0] = stringToNum<double>(spl[0]);
     }
-    if (i->substr(0, 10) == "Y position") {
-      x = i->substr(21,10);
+    else if (an.substr(0, 10) == "Y position") {
+      x = an.substr(21,10);
       std::vector<std::string> spl;
       spl = split(x, ' ');
       MPos[1] = stringToNum<double>(spl[0]);
     }
-    if (i->substr(0, 10) == "Z position") {
-      x = i->substr(21,10);
+    else if (an.substr(0, 10) == "Z position") {
+      x = an.substr(21,10);
       std::vector<std::string> spl;
       spl = split(x, ' ');
       MPos[2] = stringToNum<double>(spl[0]);
     }
-    if (i->substr(0, 9) == "Velocity:") {
-      x = i->substr(21,10);
+    else if (an.substr(0, 9) == "Velocity:") {
+      x = an.substr(21,10);
     }
-    if (i->substr(0, 6) == "Units:") {
+    else if (an.substr(0, 6) == "Units:") {
       // TODO(dek): correct these if wrong.
-      x = i->substr(21,10);
+      x = an.substr(21,10);
     }
-    if (i->substr(0, 18) == "Coordinate system:") {
-      x = i->substr(21,10);
+    else if (an.substr(0, 18) == "Coordinate system:") {
+      x = an.substr(21,10);
     }
-    if (i->substr(0, 14) == "Distance mode:") {
+    else if (an.substr(0, 14) == "Distance mode:") {
       // TODO(dek): correct these if wrong.
-      x = i->substr(21,10);
+      x = an.substr(21,10);
     }
-    if (i->substr(0, 14) == "Machine state:") {
-      x = i->substr(21,10);
+    else if (an.substr(0, 14) == "Machine state:") {
+      x = an.substr(21,10);
+      status_ = x;
       SetProperty("Status",x.c_str());
+      break;
     }
-    if (!x.empty()) {
-      LogMessage("Parsed line:");
-      LogMessage(x);
+    else {
+      LogMessage("Saw unexpected line:");
+      LogMessage(an);
     }
-
   }
   return DEVICE_OK;
 }

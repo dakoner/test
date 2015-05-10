@@ -81,10 +81,8 @@ class ShapeokoTinyGHub : public HubBase<ShapeokoTinyGHub>
   // HUB api
   int DetectInstalledDevices();
 
-  int SendConfigCommand(std::string command, std::string& answer);
-  int SendMotionCommand(std::string command);
-  int SendCommand(std::string command, std::string &returnString);
-  int SendCommandNoResponse(std::string command);
+  int SendCommand(std::string command, std::string terminator="\r");
+  int ReadResponse(std::string& returnString, float timeout=300.);
   int SetAnswerTimeoutMs(double timout);
   MM::DeviceDetectionStatus DetectDevice(void);
   int PurgeComPortH();
@@ -92,7 +90,8 @@ class ShapeokoTinyGHub : public HubBase<ShapeokoTinyGHub>
   int ReadFromComPortH(unsigned char* answer, unsigned maxLen, unsigned long& bytesRead);
   int SetCommandComPortH(const char* command, const char* term);
   int GetSerialAnswerComPortH (std::string& ans,  const char* term);
-  int GetStatus(); 
+  int GetStatus();
+  std::string GetState();
   int GetControllerVersion(std::string& version);
 
  private:
@@ -108,6 +107,7 @@ class ShapeokoTinyGHub : public HubBase<ShapeokoTinyGHub>
   std::string commandResult_;
   double MPos[3];
   double WPos[3];
+  std::string status_;
 };
 
 

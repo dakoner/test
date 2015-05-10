@@ -1,8 +1,10 @@
+#include "DeviceUtils.h"
+
 #include "ShapeokoTinyG.h"
 #include "XYStage.h"
 const char* g_StepSizeProp = "Step Size";
-const char* g_MaxVelocityProp = "Maximum Velocity";
-const char* g_AccelProp = "Acceleration";
+const char* g_XYVelocityProp = "Maximum Velocity";
+const char* g_XYAccelerationProp = "Acceleration";
 
 ///////////////////////////////////////////////////////////////////////////////
 // CShapeokoTinyGXYStage implementation
@@ -11,8 +13,8 @@ const char* g_AccelProp = "Acceleration";
 CShapeokoTinyGXYStage::CShapeokoTinyGXYStage() :
     CXYStageBase<CShapeokoTinyGXYStage>(),
     stepSize_um_(0.025),
-    max_velocity_(1000),
-    acceleration_(100),
+    velocity_(1000),
+    acceleration_(10000000),
     posX_um_(0.0),
     posY_um_(0.0),
     busy_(false),
@@ -75,18 +77,24 @@ int CShapeokoTinyGXYStage::Initialize()
   CreateProperty(g_StepSizeProp, CDeviceUtils::ConvertToString(stepSize_um_), MM::Float, false, pAct);
 
   // Max Speed
-  pAct = new CPropertyAction (this, &CShapeokoTinyGXYStage::OnMaxVelocity);
-  CreateProperty(g_MaxVelocityProp, CDeviceUtils::ConvertToString(max_velocity_), MM::Float, false, pAct);
-  SetPropertyLimits(g_MaxVelocityProp, 0.0, 1000.0);
+  pAct = new CPropertyAction (this, &CShapeokoTinyGXYStage::OnVelocity);
+  CreateProperty(g_XYVelocityProp, CDeviceUtils::ConvertToString(velocity_), MM::Float, false, pAct);
+  SetPropertyLimits(g_XYVelocityProp, 0.0, 10000000.0);
 
   // Acceleration
   pAct = new CPropertyAction (this, &CShapeokoTinyGXYStage::OnAcceleration);
-  CreateProperty(g_AccelProp, CDeviceUtils::ConvertToString(acceleration_), MM::Float, false, pAct);
-  SetPropertyLimits("Acceleration", 0.0, 1000);
+  CreateProperty(g_XYAccelerationProp, CDeviceUtils::ConvertToString(acceleration_), MM::Float, false, pAct);
+  SetPropertyLimits(g_XYAccelerationProp, 0.0, 1000000000);
+  
 
-
-
-
+  
+  pHub->PurgeComPortH();
+  pHub->SendCommand("G28.3 X0 Y0");
+    pHub->PurgeComPortH();
+  SetVelocity(velocity_);
+    pHub->PurgeComPortH();
+  SetAcceleration(acceleration_);
+    pHub->PurgeComPortH();
   ret = UpdateStatus();
   if (ret != DEVICE_OK)
     return ret;
@@ -109,15 +117,23 @@ bool CShapeokoTinyGXYStage::Busy()
 {
   LogMessage("XYStage: Busy called");
   if (timeOutTimer_ == 0)
+      return false;
+   if (timeOutTimer_->expired(GetCurrentMMTime()))
+   {
+	   timeOutTimer_ = 0;
+     // delete(timeOutTimer_);
+     
+   } else return true;
+  
+  ShapeokoTinyGHub* pHub = static_cast<ShapeokoTinyGHub*>(GetParentHub());
+  std::string status = pHub->GetState();
+
+  LogMessage("Status is:");
+  LogMessage(status);
+  if (status == "Ready" || status == "Stop")
     return false;
-  if (timeOutTimer_->expired(GetCurrentMMTime()))
-  {
-    // delete(timeOutTimer_);
-    LogMessage("XYStage: Busy return false");
-    return false;
-  }
-  LogMessage("XYStage: Busy return true");
-  return true;
+  else
+    return true;
 }
 
 double CShapeokoTinyGXYStage::GetStepSize() {return stepSize_um_;}
@@ -125,19 +141,19 @@ double CShapeokoTinyGXYStage::GetStepSize() {return stepSize_um_;}
 int CShapeokoTinyGXYStage::SetPositionSteps(long x, long y)
 {
   LogMessage("XYStage: SetPositionSteps");
-  if (timeOutTimer_ != 0)
-  {
-    if (!timeOutTimer_->expired(GetCurrentMMTime()))
-      return ERR_STAGE_MOVING;
-    delete (timeOutTimer_);
-  }
+   if (timeOutTimer_ != 0)
+   {
+      if (!timeOutTimer_->expired(GetCurrentMMTime()))
+         return ERR_STAGE_MOVING;
+      delete (timeOutTimer_);
+   }
   double newPosX = x * stepSize_um_;
   double newPosY = y * stepSize_um_;
   double difX = newPosX - posX_um_;
   double difY = newPosY - posY_um_;
   double distance = sqrt( (difX * difX) + (difY * difY) );
-  // long timeOut = (long) (distance / velocity_);
-  long timeOut = 1000;
+     
+  long timeOut = (long) (distance / velocity_);
   timeOutTimer_ = new MM::TimeoutMs(GetCurrentMMTime(),  timeOut);
   posX_um_ = x * stepSize_um_;
   posY_um_ = y * stepSize_um_;
@@ -147,10 +163,12 @@ int CShapeokoTinyGXYStage::SetPositionSteps(long x, long y)
   sprintf(buff, "G0 X%f Y%f", posX_um_/1000., posY_um_/1000.);
   std::string buffAsStdStr = buff;
   ShapeokoTinyGHub* pHub = static_cast<ShapeokoTinyGHub*>(GetParentHub());
-  int ret = pHub->SendMotionCommand(buffAsStdStr);
+  int ret = pHub->SendCommand(buffAsStdStr);
   if (ret != DEVICE_OK)
     return ret;
 
+  LogMessage("sleep");
+  //CDeviceUtils::SleepMs(1000);
   ret = OnXYStagePositionChanged(posX_um_, posY_um_);
   if (ret != DEVICE_OK)
     return ret;
@@ -200,7 +218,51 @@ double CShapeokoTinyGXYStage::GetStepSizeYUm() {   LogMessage("TinyG XYStage get
 return stepSize_um_; }
 int CShapeokoTinyGXYStage::Move(double /*vx*/, double /*vy*/) {LogMessage("TinyG XYStage move"); return DEVICE_OK;}
 
-int CShapeokoTinyGXYStage::IsXYStageSequenceable(bool& isSequenceable) const {isSequenceable = false; return DEVICE_OK;}
+int CShapeokoTinyGXYStage::IsXYStageSequenceable(bool& isSequenceable) const {isSequenceable = true; return DEVICE_OK;}
+
+
+int CShapeokoTinyGXYStage::SetVelocity(double velocity) {
+	ShapeokoTinyGHub* pHub = static_cast<ShapeokoTinyGHub*>(GetParentHub());
+	
+	std::string command = "$xvm=";
+	std::string result;
+	command += CDeviceUtils::ConvertToString(velocity);
+	int ret = pHub->SendCommand(command);
+	if (ret != DEVICE_OK) return ret;
+	ret = pHub->ReadResponse(result);
+	if (ret != DEVICE_OK) return ret;
+
+	command = "$yvm=";
+	command += CDeviceUtils::ConvertToString(velocity);
+	ret = pHub->SendCommand(command);
+	if (ret != DEVICE_OK) return ret;
+	ret = pHub->ReadResponse(result);
+	if (ret != DEVICE_OK) return ret;
+
+	return ret;
+}
+
+int CShapeokoTinyGXYStage::SetAcceleration(double acceleration) {
+	ShapeokoTinyGHub* pHub = static_cast<ShapeokoTinyGHub*>(GetParentHub());
+	
+	std::string command = "$xjm=";
+	std::string result;
+	command += CDeviceUtils::ConvertToString(acceleration);
+	int ret = pHub->SendCommand(command);
+	if (ret != DEVICE_OK) return ret;
+	ret = pHub->ReadResponse(result);
+	if (ret != DEVICE_OK) return ret;
+
+	command = "$yjm=";
+	command += CDeviceUtils::ConvertToString(acceleration);
+	ret = pHub->SendCommand(command);
+	if (ret != DEVICE_OK) return ret;
+	ret = pHub->ReadResponse(result);
+	if (ret != DEVICE_OK) return ret;
+
+	return ret;
+}
+
 
 int CShapeokoTinyGXYStage::OnStepSize(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
@@ -229,22 +291,23 @@ LogMessage("TinyG XYStage OnStepSize");
 }
 
 // TODO(dek): these should send actual commands to update the device
-int CShapeokoTinyGXYStage::OnMaxVelocity(MM::PropertyBase* pProp, MM::ActionType eAct)
+int CShapeokoTinyGXYStage::OnVelocity(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
-LogMessage("TinyG XYStage OnmaxVelocity");
+LogMessage("TinyG XYStage OnVelocity");
   if (eAct == MM::BeforeGet)
   {
         
 
-    pProp->Set(max_velocity_);
+    pProp->Set(velocity_);
   }
   else if (eAct == MM::AfterSet)
   {
     if (initialized_)
     {
-      double max_velocity;
-      pProp->Get(max_velocity);
-      max_velocity_ = max_velocity;
+      double velocity;
+      pProp->Get(velocity);
+      velocity_ = velocity;
+	  SetVelocity(velocity);
     }
 
   }
@@ -254,7 +317,6 @@ LogMessage("TinyG XYStage OnmaxVelocity");
 
   return DEVICE_OK;
 }
-
 
 int CShapeokoTinyGXYStage::OnAcceleration(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
@@ -272,6 +334,7 @@ LogMessage("TinyG XYStage OnAcceleration");
       double acceleration;
       pProp->Get(acceleration);
       acceleration_ = acceleration;
+	  SetAcceleration(acceleration);
     }
 
   }

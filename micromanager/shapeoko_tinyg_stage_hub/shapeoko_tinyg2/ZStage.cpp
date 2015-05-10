@@ -22,11 +22,16 @@ using namespace std;
 
 extern const char* g_ZStageDeviceName;
 extern const char* g_Keyword_LoadSample;
+const char* g_ZVelocityProp = "Velocity";
+const char* g_ZAccelerationProp = "Acceleration";
 
 CShapeokoTinyGZStage::CShapeokoTinyGZStage() :
     // http://www.shapeoko.com/wiki/index.php/Zaxis_ACME
     stepSize_um_ (5.),
     posZ_um_(0.0),
+	velocity_(1000),
+    acceleration_(1000),
+	timeOutTimer_(0),
     initialized_ (false)
 {
   InitializeDefaultErrorMessages();
@@ -52,6 +57,8 @@ int CShapeokoTinyGZStage::Initialize()
 
   // parent ID display
   CreateHubIDProperty();
+
+    ShapeokoTinyGHub* pHub = static_cast<ShapeokoTinyGHub*>(GetParentHub());
   // set property list
   // ----------------
 
@@ -70,6 +77,27 @@ int CShapeokoTinyGZStage::Initialize()
   ret = CreateProperty(MM::g_Keyword_Position, "0", MM::Float,false, pAct);
   if (ret != DEVICE_OK)
     return ret;
+
+  
+  // Max Speed
+  pAct = new CPropertyAction (this, &CShapeokoTinyGZStage::OnVelocity);
+  CreateProperty(g_ZVelocityProp, CDeviceUtils::ConvertToString(velocity_), MM::Float, false, pAct);
+  SetPropertyLimits(g_ZVelocityProp, 0.0, 10000000.0);
+
+  // Acceleration
+  pAct = new CPropertyAction (this, &CShapeokoTinyGZStage::OnAcceleration);
+  CreateProperty(g_ZAccelerationProp, CDeviceUtils::ConvertToString(acceleration_), MM::Float, false, pAct);
+  SetPropertyLimits(g_ZAccelerationProp, 0.0, 10000000);
+
+  
+  
+  pHub->PurgeComPortH();
+  pHub->SendCommand("G28.3 Z0");
+    pHub->PurgeComPortH();
+  SetVelocity(velocity_);
+    pHub->PurgeComPortH();
+  SetAcceleration(acceleration_);
+    pHub->PurgeComPortH();
 
   // Update lower and upper limits.  These values are cached, so if they change during a session, the adapter will need to be re-initialized
   ret = UpdateStatus();
@@ -90,7 +118,31 @@ int CShapeokoTinyGZStage::Shutdown()
 
 bool CShapeokoTinyGZStage::Busy()
 {
-  return false;
+	LogMessage("ZStage: Busy called");
+  if (timeOutTimer_ == 0)
+      return false;
+  LogMessage("1");
+   if (timeOutTimer_->expired(GetCurrentMMTime()))
+   {
+	    LogMessage("1.1");
+	   timeOutTimer_ = 0;
+      //delete(timeOutTimer_);
+      
+   } else {
+	   LogMessage("1.2");
+	   return true;
+   }
+  LogMessage("2");
+  ShapeokoTinyGHub* pHub = static_cast<ShapeokoTinyGHub*>(GetParentHub());
+  std::string status = pHub->GetState();
+    LogMessage("3");
+  LogMessage("Status is:");
+  LogMessage(status);
+  if (status == "Ready" || status == "Stop")
+    return false;
+  else
+    return true;
+
 }
 
 int CShapeokoTinyGZStage::SetPositionUm(double pos)
@@ -122,24 +174,33 @@ double CShapeokoTinyGZStage::GetStepSize() const {return stepSize_um_;}
 int CShapeokoTinyGZStage::SetPositionSteps(long steps)
 {
   LogMessage("ZStage: SetPositionSteps");
-  /* if (timeOutTimer_ != 0)
+   if (timeOutTimer_ != 0)
      {
      if (!timeOutTimer_->expired(GetCurrentMMTime()))
      return ERR_STAGE_MOVING;
-     delete (timeOutTimer_);
+	 timeOutTimer_ = 0;
+     //delete (timeOutTimer_);
      }
-  */
+  
   posZ_um_ = steps * stepSize_um_;
-   
+   double newPosZ = steps * stepSize_um_;
+  double difZ = newPosZ - posZ_um_;
+
 
   char buff[100];
   sprintf(buff, "G0 Z%f", posZ_um_/1000.);
   std::string buffAsStdStr = buff;
   ShapeokoTinyGHub* pHub = static_cast<ShapeokoTinyGHub*>(GetParentHub());
-  int ret = pHub->SendCommand(buffAsStdStr,buffAsStdStr);
+  int ret = pHub->SendCommand(buffAsStdStr);
   if (ret != DEVICE_OK)
     return ret;
+  ret = pHub->ReadResponse(buffAsStdStr);
+   if (ret != DEVICE_OK)
+    return ret;
 
+     
+  long timeOut = (long) (difZ / velocity_);
+  timeOutTimer_ = new MM::TimeoutMs(GetCurrentMMTime(),  timeOut);
   //ret = OnZStagePositionChanged(posZ_um_);
    
 
@@ -177,6 +238,36 @@ int CShapeokoTinyGZStage::GetLimits(double& lower, double& upper)
   return DEVICE_OK;
 }
 
+int CShapeokoTinyGZStage::SetVelocity(double velocity) {
+	ShapeokoTinyGHub* pHub = static_cast<ShapeokoTinyGHub*>(GetParentHub());
+	
+	std::string command = "$zvm=";
+	std::string result;
+	command += CDeviceUtils::ConvertToString(velocity);
+	int ret = pHub->SendCommand(command);
+	if (ret != DEVICE_OK) return ret;
+	ret = pHub->ReadResponse(result);
+	if (ret != DEVICE_OK) return ret;
+
+	return ret;
+}
+
+int CShapeokoTinyGZStage::SetAcceleration(double acceleration) {
+	ShapeokoTinyGHub* pHub = static_cast<ShapeokoTinyGHub*>(GetParentHub());
+	
+	std::string command = "$zjm=";
+	std::string result;
+	command += CDeviceUtils::ConvertToString(acceleration);
+	int ret = pHub->SendCommand(command);
+	if (ret != DEVICE_OK) return ret;
+	ret = pHub->ReadResponse(result);
+	if (ret != DEVICE_OK) return ret;
+
+
+	return ret;
+}
+
+
 bool CShapeokoTinyGZStage::IsContinuousFocusDrive() const {return false;}
 
 // TODO(dek): implement GetUpperLimit and GetLowerLimit
@@ -213,10 +304,66 @@ int CShapeokoTinyGZStage::OnPosition(MM::PropertyBase* pProp, MM::ActionType eAc
 // TODO(dek): implement OnStageLoad
 
 // Sequence functions (unimplemented)
-int CShapeokoTinyGZStage::IsStageSequenceable(bool& isSequenceable) const {isSequenceable = false; return DEVICE_OK;}
+int CShapeokoTinyGZStage::IsStageSequenceable(bool& isSequenceable) const {isSequenceable = true; return DEVICE_OK;}
 int CShapeokoTinyGZStage::GetStageSequenceMaxLength(long& nrEvents) const  {nrEvents = 0; return DEVICE_OK;}
 int CShapeokoTinyGZStage::StartStageSequence() {return DEVICE_OK;}
 int CShapeokoTinyGZStage::StopStageSequence() {return DEVICE_OK;}
 int CShapeokoTinyGZStage::ClearStageSequence() {return DEVICE_OK;}
 int CShapeokoTinyGZStage::AddToStageSequence(double /*position*/) {return DEVICE_OK;}
 int CShapeokoTinyGZStage::SendStageSequence() {return DEVICE_OK;}
+
+
+// TODO(dek): these should send actual commands to update the device
+int CShapeokoTinyGZStage::OnVelocity(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+LogMessage("TinyG XYStage OnVelocity");
+  if (eAct == MM::BeforeGet)
+  {
+        
+
+    pProp->Set(velocity_);
+  }
+  else if (eAct == MM::AfterSet)
+  {
+    if (initialized_)
+    {
+      double velocity;
+      pProp->Get(velocity);
+      velocity_ = velocity;
+	  SetVelocity(velocity);
+    }
+
+  }
+
+   
+  LogMessage("Set velocity");
+
+  return DEVICE_OK;
+}
+
+int CShapeokoTinyGZStage::OnAcceleration(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+LogMessage("TinyG XYStage OnAcceleration");
+  if (eAct == MM::BeforeGet)
+  {
+        
+
+    pProp->Set(acceleration_);
+  }
+  else if (eAct == MM::AfterSet)
+  {
+    if (initialized_)
+    {
+      double acceleration;
+      pProp->Get(acceleration);
+      acceleration_ = acceleration;
+	  SetAcceleration(acceleration);
+    }
+
+  }
+
+   
+  LogMessage("Set acceleration");
+
+  return DEVICE_OK;
+}

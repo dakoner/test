@@ -55,12 +55,14 @@ class CShapeokoTinyGXYStage : public CXYStageBase<CShapeokoTinyGXYStage>
   int OnPosition(MM::PropertyBase* pProp, MM::ActionType eAct);
 
   int OnStepSize(MM::PropertyBase* pProp, MM::ActionType eAct);
-  int OnMaxVelocity(MM::PropertyBase* pProp, MM::ActionType eAct);
+  int SetVelocity(double velocity);
+  int SetAcceleration(double acceleration);
+  int OnVelocity(MM::PropertyBase* pProp, MM::ActionType eAct);
   int OnAcceleration(MM::PropertyBase* pProp, MM::ActionType eAct);
 
  private:
   double stepSize_um_;
-  double max_velocity_;
+  double velocity_;
   double acceleration_;
   double posX_um_;
   double posY_um_;
