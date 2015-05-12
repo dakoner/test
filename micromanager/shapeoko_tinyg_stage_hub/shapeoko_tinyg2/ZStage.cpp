@@ -194,10 +194,7 @@ int CShapeokoTinyGZStage::SetPositionSteps(long steps)
   int ret = pHub->SendCommand(buffAsStdStr);
   if (ret != DEVICE_OK)
     return ret;
-  ret = pHub->ReadResponse(buffAsStdStr);
-   if (ret != DEVICE_OK)
-    return ret;
-
+  
      
   long timeOut = (long) (difZ / velocity_);
   timeOutTimer_ = new MM::TimeoutMs(GetCurrentMMTime(),  timeOut);

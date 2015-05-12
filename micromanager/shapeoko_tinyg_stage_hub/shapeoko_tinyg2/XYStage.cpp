@@ -13,8 +13,8 @@ const char* g_XYAccelerationProp = "Acceleration";
 CShapeokoTinyGXYStage::CShapeokoTinyGXYStage() :
     CXYStageBase<CShapeokoTinyGXYStage>(),
     stepSize_um_(0.025),
-    velocity_(1000),
-    acceleration_(10000000),
+    velocity_(10000),
+    acceleration_(10000),
     posX_um_(0.0),
     posY_um_(0.0),
     busy_(false),
@@ -168,7 +168,7 @@ int CShapeokoTinyGXYStage::SetPositionSteps(long x, long y)
     return ret;
 
   LogMessage("sleep");
-  //CDeviceUtils::SleepMs(1000);
+  CDeviceUtils::SleepMs(1000);
   ret = OnXYStagePositionChanged(posX_um_, posY_um_);
   if (ret != DEVICE_OK)
     return ret;
