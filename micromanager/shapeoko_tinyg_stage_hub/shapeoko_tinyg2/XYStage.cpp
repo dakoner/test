@@ -5,6 +5,7 @@
 const char* g_StepSizeProp = "Step Size";
 const char* g_XYVelocityProp = "Maximum Velocity";
 const char* g_XYAccelerationProp = "Acceleration";
+const char* g_XYSettleTimeProp = "Settle Time";
 
 ///////////////////////////////////////////////////////////////////////////////
 // CShapeokoTinyGXYStage implementation
@@ -23,7 +24,8 @@ CShapeokoTinyGXYStage::CShapeokoTinyGXYStage() :
     lowerLimit_(0.0),
     upperLimit_(20000.0),
 	status_(""),
-	is_moving_(false)
+	is_moving_(false),
+	settle_time_(250)
 {
   InitializeDefaultErrorMessages();
 
@@ -88,7 +90,9 @@ int CShapeokoTinyGXYStage::Initialize()
   CreateProperty(g_XYAccelerationProp, CDeviceUtils::ConvertToString(acceleration_), MM::Float, false, pAct);
   SetPropertyLimits(g_XYAccelerationProp, 0.0, 1000000000);
   
-
+  pAct = new CPropertyAction (this, &CShapeokoTinyGXYStage::OnSettleTime);
+  CreateProperty(g_XYSettleTimeProp, CDeviceUtils::ConvertToString(settle_time_), MM::Integer, false, pAct);
+  SetPropertyLimits(g_XYSettleTimeProp, 0, 5000);
   
   pHub->PurgeComPortH();
   pHub->SendCommand("G28.3 X0 Y0");
@@ -140,7 +144,7 @@ bool CShapeokoTinyGXYStage::Busy()
 	  if (timeOutTimer_ == 0) {
           LogMessage("Stage transitioned from moving to stopped.");
 	      LogMessage("Enabling post-stop timer.");
-	      timeOutTimer_ = new MM::TimeoutMs(GetCurrentMMTime(),  500);
+	      timeOutTimer_ = new MM::TimeoutMs(GetCurrentMMTime(),  settle_time_);
 		  return true;
 	  } else if (timeOutTimer_->expired(GetCurrentMMTime())) {
          LogMessage("Timer expired. return false.");
@@ -188,8 +192,7 @@ int CShapeokoTinyGXYStage::SetPositionSteps(long x, long y)
     return ret;
 
   is_moving_ = true;
-  LogMessage("sleep");
-  //CDeviceUtils::SleepMs(1000);
+  
   ret = OnXYStagePositionChanged(posX_um_, posY_um_);
   if (ret != DEVICE_OK)
     return ret;
@@ -367,6 +370,30 @@ LogMessage("TinyG XYStage OnAcceleration");
 }
 
 
+int CShapeokoTinyGXYStage::OnSettleTime(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+LogMessage("TinyG XYStage OnSettleTime");
+  if (eAct == MM::BeforeGet)
+  {
+        
+
+    pProp->Set(settle_time_);
+  }
+  else if (eAct == MM::AfterSet)
+  {
+    if (initialized_)
+    {
+      long settle_time;
+      pProp->Get(settle_time);
+      settle_time_ = settle_time;
+    }
+  }
+
+   
+  LogMessage("Set settle time");
+
+  return DEVICE_OK;
+}
 ///////////////////////////////////////////////////////////////////////////////
 // Action handlers
 ///////////////////////////////////////////////////////////////////////////////

@@ -59,6 +59,7 @@ class CShapeokoTinyGXYStage : public CXYStageBase<CShapeokoTinyGXYStage>
   int SetAcceleration(double acceleration);
   int OnVelocity(MM::PropertyBase* pProp, MM::ActionType eAct);
   int OnAcceleration(MM::PropertyBase* pProp, MM::ActionType eAct);
+  int OnSettleTime(MM::PropertyBase* pProp, MM::ActionType eAct);
 
  private:
   double stepSize_um_;
@@ -73,6 +74,7 @@ class CShapeokoTinyGXYStage : public CXYStageBase<CShapeokoTinyGXYStage>
   double upperLimit_;
   bool is_moving_;
   std::string status_;
+  long settle_time_;
 };
 
 #endif // _SHAPEOKO_TINYG_XYSTAGE_H_
