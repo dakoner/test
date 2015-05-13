@@ -21,7 +21,9 @@ CShapeokoTinyGXYStage::CShapeokoTinyGXYStage() :
     timeOutTimer_(0),
     initialized_(false),
     lowerLimit_(0.0),
-    upperLimit_(20000.0)
+    upperLimit_(20000.0),
+	status_(""),
+	is_moving_(false)
 {
   InitializeDefaultErrorMessages();
 
@@ -116,24 +118,45 @@ int CShapeokoTinyGXYStage::Shutdown()
 bool CShapeokoTinyGXYStage::Busy()
 {
   LogMessage("XYStage: Busy called");
-  if (timeOutTimer_ == 0)
-      return false;
-   if (timeOutTimer_->expired(GetCurrentMMTime()))
-   {
-	   timeOutTimer_ = 0;
-     // delete(timeOutTimer_);
-     
-   } else return true;
   
   ShapeokoTinyGHub* pHub = static_cast<ShapeokoTinyGHub*>(GetParentHub());
   std::string status = pHub->GetState();
 
   LogMessage("Status is:");
   LogMessage(status);
-  if (status == "Ready" || status == "Stop")
+  std::string oldstatus = status_;
+  status_ = status;
+
+  if (status_ == "Idle") {
+	  LogMessage("idle, return false.");
     return false;
-  else
-    return true;
+
+  }
+  else if (status_ == "Running") {
+	  LogMessage("Running, return true.");
+	  return true;
+  }
+  else if (is_moving_) {
+	  if (timeOutTimer_ == 0) {
+          LogMessage("Stage transitioned from moving to stopped.");
+	      LogMessage("Enabling post-stop timer.");
+	      timeOutTimer_ = new MM::TimeoutMs(GetCurrentMMTime(),  500);
+		  return true;
+	  } else if (timeOutTimer_->expired(GetCurrentMMTime())) {
+         LogMessage("Timer expired. return false.");
+         delete(timeOutTimer_);
+         timeOutTimer_ = 0;
+	     is_moving_ = false;
+         return false;
+      } else {
+         LogMessage("Timer has not expired.  Return true");
+         return true;
+      }
+  }
+  else {
+	  LogMessage("Unexpected status.");
+	  return false;
+  }
 }
 
 double CShapeokoTinyGXYStage::GetStepSize() {return stepSize_um_;}
@@ -141,11 +164,9 @@ double CShapeokoTinyGXYStage::GetStepSize() {return stepSize_um_;}
 int CShapeokoTinyGXYStage::SetPositionSteps(long x, long y)
 {
   LogMessage("XYStage: SetPositionSteps");
-   if (timeOutTimer_ != 0)
-   {
+  if (is_moving_) {
       if (!timeOutTimer_->expired(GetCurrentMMTime()))
          return ERR_STAGE_MOVING;
-      delete (timeOutTimer_);
    }
   double newPosX = x * stepSize_um_;
   double newPosY = y * stepSize_um_;
@@ -153,8 +174,7 @@ int CShapeokoTinyGXYStage::SetPositionSteps(long x, long y)
   double difY = newPosY - posY_um_;
   double distance = sqrt( (difX * difX) + (difY * difY) );
      
-  long timeOut = (long) (distance / velocity_);
-  timeOutTimer_ = new MM::TimeoutMs(GetCurrentMMTime(),  timeOut);
+  
   posX_um_ = x * stepSize_um_;
   posY_um_ = y * stepSize_um_;
 
@@ -167,8 +187,9 @@ int CShapeokoTinyGXYStage::SetPositionSteps(long x, long y)
   if (ret != DEVICE_OK)
     return ret;
 
+  is_moving_ = true;
   LogMessage("sleep");
-  CDeviceUtils::SleepMs(1000);
+  //CDeviceUtils::SleepMs(1000);
   ret = OnXYStagePositionChanged(posX_um_, posY_um_);
   if (ret != DEVICE_OK)
     return ret;

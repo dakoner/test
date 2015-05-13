@@ -71,6 +71,8 @@ class CShapeokoTinyGXYStage : public CXYStageBase<CShapeokoTinyGXYStage>
   bool initialized_;
   double lowerLimit_;
   double upperLimit_;
+  bool is_moving_;
+  std::string status_;
 };
 
 #endif // _SHAPEOKO_TINYG_XYSTAGE_H_
