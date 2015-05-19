@@ -1,9 +1,9 @@
 ///////////////////////////////////////////////////////////////////////////////
-// FILE:          Arduino.cpp
+// FILE:          ArduinoNeoPixelShutter.cpp
 // PROJECT:       Micro-Manager
 // SUBSYSTEM:     DeviceAdapters
 //-----------------------------------------------------------------------------
-// DESCRIPTION:   Arduino adapter.  Needs accompanying firmware.
+// DESCRIPTION:   ArduinoNeoPixelShutter adapter.  Needs accompanying firmware.
 // COPYRIGHT:     Google, 2015
 // LICENSE:       Apache 2
 //
