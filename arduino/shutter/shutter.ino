@@ -1,4 +1,4 @@
-#include "Adafruit_NeoPixel.h"
+#include <Adafruit_NeoPixel.h>
 
 #define LEDPIN 6
 #define NUM_PIXELS 40
@@ -9,7 +9,7 @@ int red = 255;
 int blue = 255;
 int green = 255;
 int brightness = 255;
-bool pins[64];
+bool pins[NUM_PIXELS];
 String accum;
 
 void draw() {
