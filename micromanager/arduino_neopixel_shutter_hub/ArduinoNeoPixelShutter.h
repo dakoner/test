@@ -1,15 +1,13 @@
- //////////////////////////////////////////////////////////////////////////////
-// FILE:          Arduino.h
+///////////////////////////////////////////////////////////////////////////////
+// FILE:          ArduinoNeoPixelShutter.h
 // PROJECT:       Micro-Manager
 // SUBSYSTEM:     DeviceAdapters
 //-----------------------------------------------------------------------------
-// DESCRIPTION:   Adapter for Arduino board
-//                Needs accompanying firmware to be installed on the board
-// COPYRIGHT:     University of California, San Francisco, 2008
-// LICENSE:       LGPL
+// DESCRIPTION:   ArduinoNeoPixelShutter adapter.  Needs accompanying firmware.
+// COPYRIGHT:     Google, 2015
+// LICENSE:       Apache 2
 //
-// AUTHOR:        Nico Stuurman, nico@cmp.ucsf.edu, 11/09/2008
-//                automatic device detection by Karl Hoover
+// AUTHOR:        David Konerding
 //
 //
 

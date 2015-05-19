@@ -11,7 +11,7 @@
 //
 //
 
-#include "Arduino.h"
+#include "ArduinoNeoPixelShutter.h"
 #include "ModuleInterface.h"
 #include <sstream>
 #include <cstdio>
