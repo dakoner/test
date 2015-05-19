@@ -3,12 +3,11 @@
 // PROJECT:       Micro-Manager
 // SUBSYSTEM:     DeviceAdapters
 //-----------------------------------------------------------------------------
-// DESCRIPTION:   Arduino adapter.  Needs accompanying firmware
-// COPYRIGHT:     University of California, San Francisco, 2008
-// LICENSE:       LGPL
-// 
-// AUTHOR:        Nico Stuurman, nico@cmp.ucsf.edu 11/09/2008
-//                automatic device detection by Karl Hoover
+// DESCRIPTION:   Arduino adapter.  Needs accompanying firmware.
+// COPYRIGHT:     Google, 2015
+// LICENSE:       Apache 2
+//
+// AUTHOR:        David Konerding
 //
 //
 
