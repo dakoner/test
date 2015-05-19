@@ -1,3 +1,6 @@
+// Arduino firmware for a NeoPixelShutter.  The shutter is used with
+// the MicroManager ArduinoNeoPixel shutter plugin.
+
 #include <Adafruit_NeoPixel.h>
 
 #define LEDPIN 6
@@ -9,7 +12,7 @@ int red = 255;
 int blue = 255;
 int green = 255;
 int brightness = 255;
-bool pins[64];
+bool pins[NUM_PIXELS];
 String accum;
 
 void draw() {
