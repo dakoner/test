@@ -11,8 +11,8 @@
 //
 //
 
-#ifndef _Arduino_H_
-#define _Arduino_H_
+#ifndef _ArduinoNeoPixel_H_
+#define _ArduinoNeoPixel_H_
 
 #include "MMDevice.h"
 #include "DeviceBase.h"
@@ -34,11 +34,11 @@
 
 class ArduinoInputMonitorThread;
 
-class CArduinoHub : public HubBase<CArduinoHub>  
+class CArduinoNeoPixelHub : public HubBase<CArduinoNeoPixelHub>  
 {
 public:
-   CArduinoHub();
-   ~CArduinoHub();
+   CArduinoNeoPixelHub();
+   ~CArduinoNeoPixelHub();
 
    int Initialize();
    int Shutdown();
@@ -90,11 +90,11 @@ private:
    int multi_;
 };
 
-class CArduinoShutter : public CShutterBase<CArduinoShutter>  
+class CArduinoNeoPixelShutter : public CShutterBase<CArduinoNeoPixelShutter>  
 {
 public:
-   CArduinoShutter();
-   ~CArduinoShutter();
+   CArduinoNeoPixelShutter();
+   ~CArduinoNeoPixelShutter();
   
    // MMDevice API
    // ------------
@@ -125,4 +125,4 @@ private:
    std::string name_;
 };
 
-#endif //_Arduino_H_
+#endif //_ArduinoNeoPixel_H_

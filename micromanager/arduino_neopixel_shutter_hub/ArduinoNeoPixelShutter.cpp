@@ -22,21 +22,21 @@
    #define snprintf _snprintf 
 #endif
 
-const char* g_DeviceNameArduinoHub = "ArduinoNeoPixel-Hub";
-const char* g_DeviceNameArduinoShutter = "ArduinoNeoPixel-Shutter";
+const char* g_DeviceNameArduinoNeoPixelHub = "ArduinoNeoPixel-Hub";
+const char* g_DeviceNameArduinoNeoPixelShutter = "ArduinoNeoPixel-Shutter";
 const char* g_versionProp = "Version";
 
 
 // static lock
-MMThreadLock CArduinoHub::lock_;
+MMThreadLock CArduinoNeoPixelHub::lock_;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Exported MMDevice API
 ///////////////////////////////////////////////////////////////////////////////
 MODULE_API void InitializeModuleData()
 {
-   RegisterDevice(g_DeviceNameArduinoHub, MM::HubDevice, "Hub (required)");
-   RegisterDevice(g_DeviceNameArduinoShutter, MM::ShutterDevice, "Shutter");
+   RegisterDevice(g_DeviceNameArduinoNeoPixelHub, MM::HubDevice, "Hub (required)");
+   RegisterDevice(g_DeviceNameArduinoNeoPixelShutter, MM::ShutterDevice, "Shutter");
 }
 
 MODULE_API MM::Device* CreateDevice(const char* deviceName)
@@ -44,13 +44,13 @@ MODULE_API MM::Device* CreateDevice(const char* deviceName)
    if (deviceName == 0)
       return 0;
 
-   if (strcmp(deviceName, g_DeviceNameArduinoHub) == 0)
+   if (strcmp(deviceName, g_DeviceNameArduinoNeoPixelHub) == 0)
    {
-      return new CArduinoHub;
+      return new CArduinoNeoPixelHub;
    }
-   else if (strcmp(deviceName, g_DeviceNameArduinoShutter) == 0)
+   else if (strcmp(deviceName, g_DeviceNameArduinoNeoPixelShutter) == 0)
    {
-      return new CArduinoShutter;
+      return new CArduinoNeoPixelShutter;
    }
 
    return 0;
@@ -62,10 +62,10 @@ MODULE_API void DeleteDevice(MM::Device* pDevice)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// CArduinoHUb implementation
+// CArduinoNeoPixelHUb implementation
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-CArduinoHub::CArduinoHub() :
+CArduinoNeoPixelHub::CArduinoNeoPixelHub() :
    initialized_ (false),
    shutterState_ (0),
    intensity_(255),
@@ -78,27 +78,27 @@ CArduinoHub::CArduinoHub() :
 
    SetErrorText(ERR_PORT_OPEN_FAILED, "Failed opening Arduino USB device");
    SetErrorText(ERR_BOARD_NOT_FOUND, "Did not find an Arduino board with the correct firmware.  Is the Arduino board connected to this serial port?");
-   SetErrorText(ERR_NO_PORT_SET, "Hub Device not found.  The Arduino Hub device is needed to create this device");
+   SetErrorText(ERR_NO_PORT_SET, "Hub Device not found.  The ArduinoNeoPixel Hub device is needed to create this device");
    std::ostringstream errorText;
    errorText << "The firmware version on the Arduino is not compatible with this adapter.  Please use firmware version ";
    // errorText <<  g_Min_MMVersion << " to " << g_Max_MMVersion;
    SetErrorText(ERR_VERSION_MISMATCH, errorText.str().c_str());
 
-   CPropertyAction* pAct = new CPropertyAction(this, &CArduinoHub::OnPort);
+   CPropertyAction* pAct = new CPropertyAction(this, &CArduinoNeoPixelHub::OnPort);
    CreateProperty(MM::g_Keyword_Port, "Undefined", MM::String, false, pAct, true);
 }
 
-CArduinoHub::~CArduinoHub()
+CArduinoHub::~CArduinoNeoPixelHub()
 {
    Shutdown();
 }
 
-void CArduinoHub::GetName(char* name) const
+void CArduinoNeoPixelHub::GetName(char* name) const
 {
-   CDeviceUtils::CopyLimitedString(name, g_DeviceNameArduinoHub);
+   CDeviceUtils::CopyLimitedString(name, g_DeviceNameArduinoNeoPixelHub);
 }
 
-bool CArduinoHub::Busy()
+bool CArduinoNeoPixelHub::Busy()
 {
    return false;
 }
@@ -106,7 +106,7 @@ bool CArduinoHub::Busy()
 // private and expects caller to:
 // 1. guard the port
 // 2. purge the port
-int CArduinoHub::GetControllerVersion(int& version)
+int CArduinoNeoPixelHub::GetControllerVersion(int& version)
 {
    int ret = DEVICE_OK;
    version = 0;
@@ -133,7 +133,7 @@ int CArduinoHub::GetControllerVersion(int& version)
 
 }
 
-MM::DeviceDetectionStatus CArduinoHub::DetectDevice(void)
+MM::DeviceDetectionStatus CArduinoNeoPixelHub::DetectDevice(void)
 {
    if (initialized_)
       return MM::CanCommunicate;
@@ -196,10 +196,10 @@ MM::DeviceDetectionStatus CArduinoHub::DetectDevice(void)
 }
 
 
-int CArduinoHub::Initialize()
+int CArduinoNeoPixelHub::Initialize()
 {
    // Name
-   int ret = CreateProperty(MM::g_Keyword_Name, g_DeviceNameArduinoHub, MM::String, true);
+   int ret = CreateProperty(MM::g_Keyword_Name, g_DeviceNameArduinoNeoPixelHub, MM::String, true);
    if (DEVICE_OK != ret)
       return ret;
 
@@ -217,7 +217,7 @@ int CArduinoHub::Initialize()
    // if (version_ < g_Min_MMVersion || version_ > g_Max_MMVersion)
    //    return ERR_VERSION_MISMATCH;
 
-   CPropertyAction* pAct = new CPropertyAction(this, &CArduinoHub::OnVersion);
+   CPropertyAction* pAct = new CPropertyAction(this, &CArduinoNeoPixelHub::OnVersion);
    std::ostringstream sversion;
    sversion << version_;
    CreateProperty(g_versionProp, sversion.str().c_str(), MM::Integer, true, pAct);
@@ -233,13 +233,13 @@ int CArduinoHub::Initialize()
    return DEVICE_OK;
 }
 
-int CArduinoHub::DetectInstalledDevices()
+int CArduinoNeoPixelHub::DetectInstalledDevices()
 {
    if (MM::CanCommunicate == DetectDevice()) 
    {
       std::vector<std::string> peripherals; 
       peripherals.clear();
-      peripherals.push_back(g_DeviceNameArduinoShutter);
+      peripherals.push_back(g_DeviceNameArduinoNeoPixelShutter);
       for (size_t i=0; i < peripherals.size(); i++) 
       {
          MM::Device* pDev = ::CreateDevice(peripherals[i].c_str());
@@ -255,13 +255,13 @@ int CArduinoHub::DetectInstalledDevices()
 
 
 
-int CArduinoHub::Shutdown()
+int CArduinoNeoPixelHub::Shutdown()
 {
    initialized_ = false;
    return DEVICE_OK;
 }
 
-int CArduinoHub::OnPort(MM::PropertyBase* pProp, MM::ActionType pAct)
+int CArduinoNeoPixelHub::OnPort(MM::PropertyBase* pProp, MM::ActionType pAct)
 {
    if (pAct == MM::BeforeGet)
    {
@@ -275,7 +275,7 @@ int CArduinoHub::OnPort(MM::PropertyBase* pProp, MM::ActionType pAct)
    return DEVICE_OK;
 }
 
-int CArduinoHub::OnVersion(MM::PropertyBase* pProp, MM::ActionType pAct)
+int CArduinoNeoPixelHub::OnVersion(MM::PropertyBase* pProp, MM::ActionType pAct)
 {
    if (pAct == MM::BeforeGet)
    {
@@ -286,39 +286,39 @@ int CArduinoHub::OnVersion(MM::PropertyBase* pProp, MM::ActionType pAct)
 
 
 ///////////////////////////////////////////////////////////////////////////////
-// CArduinoShutter implementation
+// CArduinoNeoPixelShutter implementation
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-CArduinoShutter::CArduinoShutter() : initialized_(false), name_(g_DeviceNameArduinoShutter)  
+CArduinoNeoPixelShutter::CArduinoNeoPixelShutter() : initialized_(false), name_(g_DeviceNameArduinoNeoPixelShutter)  
 {
    InitializeDefaultErrorMessages();
    EnableDelay();
 
-   SetErrorText(ERR_NO_PORT_SET, "Hub Device not found.  The Arduino Hub device is needed to create this device");
+   SetErrorText(ERR_NO_PORT_SET, "Hub Device not found.  The ArduinoNeoPixel Hub device is needed to create this device");
 
    // Name
-   int ret = CreateProperty(MM::g_Keyword_Name, g_DeviceNameArduinoShutter, MM::String, true);
+   int ret = CreateProperty(MM::g_Keyword_Name, g_DeviceNameArduinoNeoPixelShutter, MM::String, true);
    assert(DEVICE_OK == ret);
 
    // Description
-   ret = CreateProperty(MM::g_Keyword_Description, "Arduino shutter driver", MM::String, true);
+   ret = CreateProperty(MM::g_Keyword_Description, "ArduinoNeoPixel shutter driver", MM::String, true);
    assert(DEVICE_OK == ret);
 
    // parent ID display
    CreateHubIDProperty();
 }
 
-CArduinoShutter::~CArduinoShutter()
+CArduinoNeoPixelShutter::~CArduinoNeoPixelShutter()
 {
    Shutdown();
 }
 
-void CArduinoShutter::GetName(char* name) const
+void CArduinoNeoPixelShutter::GetName(char* name) const
 {
-   CDeviceUtils::CopyLimitedString(name, g_DeviceNameArduinoShutter);
+   CDeviceUtils::CopyLimitedString(name, g_DeviceNameArduinoNeoPixelShutter);
 }
 
-bool CArduinoShutter::Busy()
+bool CArduinoNeoPixelShutter::Busy()
 {
    MM::MMTime interval = GetCurrentMMTime() - changedTime_;
 
@@ -328,9 +328,9 @@ bool CArduinoShutter::Busy()
        return false;
 }
 
-int CArduinoShutter::Initialize()
+int CArduinoNeoPixelShutter::Initialize()
 {
-   CArduinoHub* hub = static_cast<CArduinoHub*>(GetParentHub());
+   CArduinoNeoPixelHub* hub = static_cast<CArduinoNeoPixelHub*>(GetParentHub());
    if (!hub || !hub->IsPortAvailable()) {
       return ERR_NO_PORT_SET;
    }
@@ -343,33 +343,33 @@ int CArduinoShutter::Initialize()
    
    // OnOff
    // ------
-   CPropertyAction* pAct = new CPropertyAction (this, &CArduinoShutter::OnOnOff);
+   CPropertyAction* pAct = new CPropertyAction (this, &CArduinoNeoPixelShutter::OnOnOff);
    int ret = CreateProperty("OnOff", "1", MM::Integer, false, pAct);
    if (ret != DEVICE_OK)
       return ret;
 
-   pAct = new CPropertyAction (this, &CArduinoShutter::OnIntensity);
+   pAct = new CPropertyAction (this, &CArduinoNeoPixelShutter::OnIntensity);
    ret = CreateProperty("Intensity", "255", MM::Integer, false, pAct);
    SetPropertyLimits("Intensity", 0, 255);
    if (ret != DEVICE_OK)
       return ret;
 
-   pAct = new CPropertyAction(this, &CArduinoShutter::OnRedBrightness);
+   pAct = new CPropertyAction(this, &CArduinoNeoPixelShutter::OnRedBrightness);
    ret = CreateProperty("Red brightness", "255", MM::Integer, false, pAct);
    SetPropertyLimits("Red brightness", 0, 255);
    if (ret != DEVICE_OK)
       return ret;
-   pAct = new CPropertyAction(this, &CArduinoShutter::OnGreenBrightness);
+   pAct = new CPropertyAction(this, &CArduinoNeoPixelShutter::OnGreenBrightness);
    ret = CreateProperty("Green brightness", "255", MM::Integer, false, pAct);
    SetPropertyLimits("Green brightness", 0, 255);
    if (ret != DEVICE_OK)
       return ret;
-   pAct = new CPropertyAction(this, &CArduinoShutter::OnBlueBrightness);
+   pAct = new CPropertyAction(this, &CArduinoNeoPixelShutter::OnBlueBrightness);
    ret = CreateProperty("Blue brightness", "255", MM::Integer, false, pAct);
    SetPropertyLimits("Blue brightness", 0, 255);
    if (ret != DEVICE_OK)
       return ret;
-   pAct = new CPropertyAction(this, &CArduinoShutter::OnMulti);
+   pAct = new CPropertyAction(this, &CArduinoNeoPixelShutter::OnMulti);
    ret = CreateProperty("Multi", "8", MM::Integer, false, pAct);
    SetPropertyLimits("Multi", 0, 1<<3);
    if (ret != DEVICE_OK)
@@ -396,7 +396,7 @@ int CArduinoShutter::Initialize()
    return DEVICE_OK;
 }
 
-int CArduinoShutter::Shutdown()
+int CArduinoNeoPixelShutter::Shutdown()
 {
    if (initialized_)
    {
@@ -405,7 +405,7 @@ int CArduinoShutter::Shutdown()
    return DEVICE_OK;
 }
 
-int CArduinoShutter::SetOpen(bool open)
+int CArduinoNeoPixelShutter::SetOpen(bool open)
 {
 	std::ostringstream os;
 	os << "Request " << open;
@@ -417,7 +417,7 @@ int CArduinoShutter::SetOpen(bool open)
       return SetProperty("OnOff", "0");
 }
 
-int CArduinoShutter::GetOpen(bool& open)
+int CArduinoNeoPixelShutter::GetOpen(bool& open)
 {
    char buf[MM::MaxStrLength];
    int ret = GetProperty("OnOff", buf);
@@ -429,7 +429,7 @@ int CArduinoShutter::GetOpen(bool& open)
    return DEVICE_OK;
 }
 
-int CArduinoShutter::Fire(double /*deltaT*/)
+int CArduinoNeoPixelShutter::Fire(double /*deltaT*/)
 {
    return DEVICE_UNSUPPORTED_COMMAND;
 }
@@ -439,9 +439,9 @@ int CArduinoShutter::Fire(double /*deltaT*/)
 // Action handlers
 ///////////////////////////////////////////////////////////////////////////////
 
-int CArduinoShutter::OnOnOff(MM::PropertyBase* pProp, MM::ActionType eAct)
+int CArduinoNeoPixelShutter::OnOnOff(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
-   CArduinoHub* hub = static_cast<CArduinoHub*>(GetParentHub());
+   CArduinoNeoPixelHub* hub = static_cast<CArduinoNeoPixelHub*>(GetParentHub());
    if (eAct == MM::BeforeGet)
    {
       // use cached state
@@ -512,9 +512,9 @@ int CArduinoShutter::OnOnOff(MM::PropertyBase* pProp, MM::ActionType eAct)
 }
 
 
-int CArduinoShutter::OnIntensity(MM::PropertyBase* pProp, MM::ActionType eAct)
+int CArduinoNeoPixelShutter::OnIntensity(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
-   CArduinoHub* hub = static_cast<CArduinoHub*>(GetParentHub());
+   CArduinoNeoPixelHub* hub = static_cast<CArduinoNeoPixelHub*>(GetParentHub());
    if (eAct == MM::BeforeGet)
    {
       // use cached state
@@ -533,9 +533,9 @@ int CArduinoShutter::OnIntensity(MM::PropertyBase* pProp, MM::ActionType eAct)
    return DEVICE_OK;
 }
 
-int CArduinoShutter::OnRedBrightness(MM::PropertyBase* pProp, MM::ActionType eAct)
+int CArduinoNeoPixelShutter::OnRedBrightness(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
-   CArduinoHub* hub = static_cast<CArduinoHub*>(GetParentHub());
+   CArduinoNeoPixelHub* hub = static_cast<CArduinoNeoPixelHub*>(GetParentHub());
    if (eAct == MM::BeforeGet)
    {
       // use cached state
@@ -554,9 +554,9 @@ int CArduinoShutter::OnRedBrightness(MM::PropertyBase* pProp, MM::ActionType eAc
    return DEVICE_OK;
 }
 
-int CArduinoShutter::OnGreenBrightness(MM::PropertyBase* pProp, MM::ActionType eAct)
+int CArduinoNeoPixelShutter::OnGreenBrightness(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
-   CArduinoHub* hub = static_cast<CArduinoHub*>(GetParentHub());
+   CArduinoNeoPixelHub* hub = static_cast<CArduinoNeoPixelHub*>(GetParentHub());
    if (eAct == MM::BeforeGet)
    {
       // use cached state
@@ -575,9 +575,9 @@ int CArduinoShutter::OnGreenBrightness(MM::PropertyBase* pProp, MM::ActionType e
    return DEVICE_OK;
 }
 
-int CArduinoShutter::OnBlueBrightness(MM::PropertyBase* pProp, MM::ActionType eAct)
+int CArduinoNeoPixelShutter::OnBlueBrightness(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
-   CArduinoHub* hub = static_cast<CArduinoHub*>(GetParentHub());
+   CArduinoNeoPixelHub* hub = static_cast<CArduinoNeoPixelHub*>(GetParentHub());
    if (eAct == MM::BeforeGet)
    {
       // use cached state
@@ -596,9 +596,9 @@ int CArduinoShutter::OnBlueBrightness(MM::PropertyBase* pProp, MM::ActionType eA
    return DEVICE_OK;
 }
 
-int CArduinoShutter::OnMulti(MM::PropertyBase* pProp, MM::ActionType eAct)
+int CArduinoNeoPixelShutter::OnMulti(MM::PropertyBase* pProp, MM::ActionType eAct)
 {
-   CArduinoHub* hub = static_cast<CArduinoHub*>(GetParentHub());
+   CArduinoNeoPixelHub* hub = static_cast<CArduinoNeoPixelHub*>(GetParentHub());
    if (eAct == MM::BeforeGet)
    {
       // use cached state
