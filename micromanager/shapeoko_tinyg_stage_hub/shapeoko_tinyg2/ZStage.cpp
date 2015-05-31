@@ -121,21 +121,19 @@ bool CShapeokoTinyGZStage::Busy()
 	LogMessage("ZStage: Busy called");
   if (timeOutTimer_ == 0)
       return false;
-  LogMessage("1");
+ 
    if (timeOutTimer_->expired(GetCurrentMMTime()))
    {
-	    LogMessage("1.1");
-	   timeOutTimer_ = 0;
-      //delete(timeOutTimer_);
-      
+	   delete(timeOutTimer_);
+	   timeOutTimer_ = 0;  
    } else {
-	   LogMessage("1.2");
+
 	   return true;
    }
-  LogMessage("2");
+  
   ShapeokoTinyGHub* pHub = static_cast<ShapeokoTinyGHub*>(GetParentHub());
   std::string status = pHub->GetState();
-    LogMessage("3");
+
   LogMessage("Status is:");
   LogMessage(status);
   if (status == "Ready" || status == "Stop")
@@ -178,8 +176,8 @@ int CShapeokoTinyGZStage::SetPositionSteps(long steps)
      {
      if (!timeOutTimer_->expired(GetCurrentMMTime()))
      return ERR_STAGE_MOVING;
+	 delete (timeOutTimer_);
 	 timeOutTimer_ = 0;
-     //delete (timeOutTimer_);
      }
   
   posZ_um_ = steps * stepSize_um_;
@@ -196,7 +194,7 @@ int CShapeokoTinyGZStage::SetPositionSteps(long steps)
     return ret;
   
      
-  long timeOut = (long) (difZ / velocity_);
+  long timeOut = (long) 250;
   timeOutTimer_ = new MM::TimeoutMs(GetCurrentMMTime(),  timeOut);
   //ret = OnZStagePositionChanged(posZ_um_);
    
