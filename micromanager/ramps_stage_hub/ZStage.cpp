@@ -22,16 +22,11 @@ using namespace std;
 
 extern const char* g_ZStageDeviceName;
 extern const char* g_Keyword_LoadSample;
-const char* g_ZVelocityProp = "Velocity";
-const char* g_ZAccelerationProp = "Acceleration";
 
 CRAMPSZStage::CRAMPSZStage() :
     // http://www.shapeoko.com/wiki/index.php/Zaxis_ACME
     stepSize_um_ (5.),
     posZ_um_(0.0),
-	velocity_(1000),
-    acceleration_(1000),
-	timeOutTimer_(0),
     initialized_ (false)
 {
   InitializeDefaultErrorMessages();
@@ -78,27 +73,6 @@ int CRAMPSZStage::Initialize()
   if (ret != DEVICE_OK)
     return ret;
 
-  
-  // Max Speed
-  pAct = new CPropertyAction (this, &CRAMPSZStage::OnVelocity);
-  CreateProperty(g_ZVelocityProp, CDeviceUtils::ConvertToString(velocity_), MM::Float, false, pAct);
-  SetPropertyLimits(g_ZVelocityProp, 0.0, 10000000.0);
-
-  // Acceleration
-  pAct = new CPropertyAction (this, &CRAMPSZStage::OnAcceleration);
-  CreateProperty(g_ZAccelerationProp, CDeviceUtils::ConvertToString(acceleration_), MM::Float, false, pAct);
-  SetPropertyLimits(g_ZAccelerationProp, 0.0, 10000000);
-
-  
-  
-  pHub->PurgeComPortH();
-  pHub->SendCommand("G28.3 Z0");
-    pHub->PurgeComPortH();
-  SetVelocity(velocity_);
-    pHub->PurgeComPortH();
-  SetAcceleration(acceleration_);
-    pHub->PurgeComPortH();
-
   // Update lower and upper limits.  These values are cached, so if they change during a session, the adapter will need to be re-initialized
   ret = UpdateStatus();
   if (ret != DEVICE_OK)
@@ -119,26 +93,11 @@ int CRAMPSZStage::Shutdown()
 bool CRAMPSZStage::Busy()
 {
 	LogMessage("ZStage: Busy called");
-  if (timeOutTimer_ == 0)
-      return false;
-  LogMessage("1");
-   if (timeOutTimer_->expired(GetCurrentMMTime()))
-   {
-	    LogMessage("1.1");
-	   timeOutTimer_ = 0;
-      //delete(timeOutTimer_);
-      
-   } else {
-	   LogMessage("1.2");
-	   return true;
-   }
-  LogMessage("2");
   RAMPSHub* pHub = static_cast<RAMPSHub*>(GetParentHub());
   std::string status = pHub->GetState();
-    LogMessage("3");
   LogMessage("Status is:");
   LogMessage(status);
-  if (status == "Ready" || status == "Stop")
+  if (status == "Idle")
     return false;
   else
     return true;
@@ -174,34 +133,26 @@ double CRAMPSZStage::GetStepSize() const {return stepSize_um_;}
 int CRAMPSZStage::SetPositionSteps(long steps)
 {
   LogMessage("ZStage: SetPositionSteps");
-   if (timeOutTimer_ != 0)
-     {
-     if (!timeOutTimer_->expired(GetCurrentMMTime()))
-     return ERR_STAGE_MOVING;
-	 timeOutTimer_ = 0;
-     //delete (timeOutTimer_);
-     }
-  
+  RAMPSHub* pHub = static_cast<RAMPSHub*>(GetParentHub());
+  std::string status = pHub->GetState();
+  if (status == "Running") {
+      return ERR_STAGE_MOVING;
+  }
   posZ_um_ = steps * stepSize_um_;
-   double newPosZ = steps * stepSize_um_;
+  double newPosZ = steps * stepSize_um_;
   double difZ = newPosZ - posZ_um_;
 
 
   char buff[100];
   sprintf(buff, "G0 Z%f", posZ_um_/1000.);
   std::string buffAsStdStr = buff;
-  RAMPSHub* pHub = static_cast<RAMPSHub*>(GetParentHub());
   int ret = pHub->SendCommand(buffAsStdStr);
   if (ret != DEVICE_OK)
     return ret;
   
-     
-  long timeOut = (long) (difZ / velocity_);
-  timeOutTimer_ = new MM::TimeoutMs(GetCurrentMMTime(),  timeOut);
-  //ret = OnZStagePositionChanged(posZ_um_);
-   
 
-  // CDeviceUtils::SleepMs(100);
+  pHub->SetTargetZ(posZ_um_);
+
   return DEVICE_OK;
 }
 
@@ -235,34 +186,6 @@ int CRAMPSZStage::GetLimits(double& lower, double& upper)
   return DEVICE_OK;
 }
 
-int CRAMPSZStage::SetVelocity(double velocity) {
-	RAMPSHub* pHub = static_cast<RAMPSHub*>(GetParentHub());
-	
-	std::string command = "$zvm=";
-	std::string result;
-	command += CDeviceUtils::ConvertToString(velocity);
-	int ret = pHub->SendCommand(command);
-	if (ret != DEVICE_OK) return ret;
-	ret = pHub->ReadResponse(result);
-	if (ret != DEVICE_OK) return ret;
-
-	return ret;
-}
-
-int CRAMPSZStage::SetAcceleration(double acceleration) {
-	RAMPSHub* pHub = static_cast<RAMPSHub*>(GetParentHub());
-	
-	std::string command = "$zjm=";
-	std::string result;
-	command += CDeviceUtils::ConvertToString(acceleration);
-	int ret = pHub->SendCommand(command);
-	if (ret != DEVICE_OK) return ret;
-	ret = pHub->ReadResponse(result);
-	if (ret != DEVICE_OK) return ret;
-
-
-	return ret;
-}
 
 
 bool CRAMPSZStage::IsContinuousFocusDrive() const {return false;}
@@ -308,59 +231,3 @@ int CRAMPSZStage::StopStageSequence() {return DEVICE_OK;}
 int CRAMPSZStage::ClearStageSequence() {return DEVICE_OK;}
 int CRAMPSZStage::AddToStageSequence(double /*position*/) {return DEVICE_OK;}
 int CRAMPSZStage::SendStageSequence() {return DEVICE_OK;}
-
-
-// TODO(dek): these should send actual commands to update the device
-int CRAMPSZStage::OnVelocity(MM::PropertyBase* pProp, MM::ActionType eAct)
-{
-LogMessage("RAMPS XYStage OnVelocity");
-  if (eAct == MM::BeforeGet)
-  {
-        
-
-    pProp->Set(velocity_);
-  }
-  else if (eAct == MM::AfterSet)
-  {
-    if (initialized_)
-    {
-      double velocity;
-      pProp->Get(velocity);
-      velocity_ = velocity;
-	  SetVelocity(velocity);
-    }
-
-  }
-
-   
-  LogMessage("Set velocity");
-
-  return DEVICE_OK;
-}
-
-int CRAMPSZStage::OnAcceleration(MM::PropertyBase* pProp, MM::ActionType eAct)
-{
-LogMessage("RAMPS XYStage OnAcceleration");
-  if (eAct == MM::BeforeGet)
-  {
-        
-
-    pProp->Set(acceleration_);
-  }
-  else if (eAct == MM::AfterSet)
-  {
-    if (initialized_)
-    {
-      double acceleration;
-      pProp->Get(acceleration);
-      acceleration_ = acceleration;
-	  SetAcceleration(acceleration);
-    }
-
-  }
-
-   
-  LogMessage("Set acceleration");
-
-  return DEVICE_OK;
-}

@@ -3,18 +3,12 @@
 // PROJECT:       Micro-Manager
 // SUBSYSTEM:     DeviceAdapters
 //-----------------------------------------------------------------------------
-// DESCRIPTION:   The example implementation of the demo camera.
-//                Simulates generic digital camera and associated automated
-//                microscope devices and enables testing of the rest of the
-//                system without the need to connect to the actual hardware. 
+// DESCRIPTION:   Device adapter that turns a RAMPS stepper controller with
+//                3-axis stage into a Micro-Manager stage
 //                
-// AUTHOR:        Nenad Amodaj, nenad@amodaj.com, 06/08/2005
-//                
-//                Karl Hoover (stuff such as programmable CCD size  & the various image processors)
-//                Arther Edelstein ( equipment error simulation)
+// AUTHOR:        David Konerding, dakoner@gmail.com, 06/01/2015
 //
-// COPYRIGHT:     University of California, San Francisco, 2006-2015
-//                100X Imaging Inc, 2008
+// COPYRIGHT:     Google Inc., 2015
 //
 // LICENSE:       This file is distributed under the BSD license.
 //                License text is included with the source distribution.
@@ -77,6 +71,11 @@ class RAMPSHub : public HubBase<RAMPSHub>
   int OnVersion(MM::PropertyBase* pProp, MM::ActionType pAct);
   int OnPort(MM::PropertyBase* pPropt, MM::ActionType eAct);
   int OnCommand(MM::PropertyBase* pProp, MM::ActionType pAct);
+  int OnSettleTime(MM::PropertyBase* pProp, MM::ActionType eAct);
+  int SetVelocity(double velocity);
+  int SetAcceleration(double acceleration);
+  int OnVelocity(MM::PropertyBase* pProp, MM::ActionType eAct);
+  int OnAcceleration(MM::PropertyBase* pProp, MM::ActionType eAct);
 
   // HUB api
   int DetectInstalledDevices();
@@ -91,6 +90,9 @@ class RAMPSHub : public HubBase<RAMPSHub>
   int SetCommandComPortH(const char* command, const char* term);
   int GetSerialAnswerComPortH (std::string& ans,  const char* term);
   int GetStatus();
+  int SetTargetXY(double x, double y);
+  int SetTargetZ(double z);
+  int GetXYPosition(double *x, double *y);
   std::string GetState();
   int GetControllerVersion(std::string& version);
 
@@ -107,7 +109,12 @@ class RAMPSHub : public HubBase<RAMPSHub>
   std::string commandResult_;
   double MPos[3];
   double WPos[3];
+  double target_x_, target_y_, target_z_;
   std::string status_;
+  MM::TimeoutMs* timeOutTimer_;
+  long settle_time_;
+  double velocity_;
+  double acceleration_;
 };
 
 

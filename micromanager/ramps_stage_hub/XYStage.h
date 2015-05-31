@@ -55,26 +55,17 @@ class CRAMPSXYStage : public CXYStageBase<CRAMPSXYStage>
   int OnPosition(MM::PropertyBase* pProp, MM::ActionType eAct);
 
   int OnStepSize(MM::PropertyBase* pProp, MM::ActionType eAct);
-  int SetVelocity(double velocity);
-  int SetAcceleration(double acceleration);
-  int OnVelocity(MM::PropertyBase* pProp, MM::ActionType eAct);
-  int OnAcceleration(MM::PropertyBase* pProp, MM::ActionType eAct);
-  int OnSettleTime(MM::PropertyBase* pProp, MM::ActionType eAct);
 
  private:
   double stepSize_um_;
-  double velocity_;
-  double acceleration_;
   double posX_um_;
   double posY_um_;
   bool busy_;
-  MM::TimeoutMs* timeOutTimer_;
   bool initialized_;
   double lowerLimit_;
   double upperLimit_;
   bool is_moving_;
   std::string status_;
-  long settle_time_;
 };
 
 #endif // _RAMPS_XYSTAGE_H_

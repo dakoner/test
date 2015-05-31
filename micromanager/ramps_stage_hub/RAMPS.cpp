@@ -40,6 +40,9 @@ const char* g_XYStageDeviceName = "DXYStage";
 const char* g_ZStageDeviceName = "DZStage";
 const char* g_HubDeviceName = "DHub";
 const char* g_versionProp = "Version";
+const char* g_XYVelocityProp = "Maximum Velocity";
+const char* g_XYAccelerationProp = "Acceleration";
+const char* g_SettleTimeProp = "Settle Time";
 
 ///////////////////////////////////////////////////////////////////////////////
 // Exported MMDevice API
@@ -101,11 +104,20 @@ std::vector<std::string> split(const std::string &s, char delim) {
 
 RAMPSHub::RAMPSHub():
     initialized_(false),
-    busy_(false)
+    busy_(false),
+    target_x_(0.),
+    target_y_(0.),
+    target_z_(0.),
+    status_("Idle"),
+    velocity_(10000),
+    acceleration_(10000),
+    settle_time_(250),
+    timeOutTimer_(0)
 {
   LogMessage("RAMPS Constructor");
   CPropertyAction* pAct  = new CPropertyAction(this, &RAMPSHub::OnPort);
   CreateProperty(MM::g_Keyword_Port, "Undefined", MM::String, false, pAct, true);
+
 }
 
 RAMPSHub::~RAMPSHub() { Shutdown();}
@@ -146,34 +158,21 @@ int RAMPSHub::Initialize()
   PurgeComPortH();
   std::string expected;
   std::string answer;
-  ret = SendCommand("$ee=0");
-  if (ret != DEVICE_OK)
-    return ret;
-  ret = ReadResponse(answer);
-  if (ret != DEVICE_OK)
-    return ret;
-  expected = "[ee]";
-  if (answer.find(expected) == std::string::npos) {
-    LogMessage("Got unexpected response to disable echo.");
-    return DEVICE_ERR;
-  }
 
+  CDeviceUtils::SleepMs(2000);
+
+  while (true) {
+    int ret = ReadResponse(answer);
+    if (ret != DEVICE_OK)
+    {
+      LogMessage("Got timeout:");
+      LogMessageCode(ret,true);
+      break;
+    }
+  }
   PurgeComPortH();
 
-  ret = SendCommand("$tv=0");
-  if (ret != DEVICE_OK)
-    return ret;
-  ret = ReadResponse(answer);
-  if (ret != DEVICE_OK)
-    return ret;
-  expected = "[tv]";
-  if (answer.find(expected) == std::string::npos) {
-    LogMessage("Got unexpected response to disable verbosity.");
-    return DEVICE_ERR;
-  }
-
-
-  PurgeComPortH();
+  LogMessage("Getting Controllr Version.");
   ret = GetControllerVersion(version_);
   if( DEVICE_OK != ret)
     return ret;
@@ -188,8 +187,21 @@ int RAMPSHub::Initialize()
   LogMessage("Writing absolute mode to com port");
   LogMessage(command);
   ret = SendCommand(command);
-  if (ret != DEVICE_OK)
+  if (ret != DEVICE_OK) {
+    LogMessage("G90 Send Command failed");
     return ret;
+  }
+  ret = ReadResponse(answer);
+  if (ret != DEVICE_OK) {
+    LogMessage("error getting controller version.");
+    return ret;
+  }
+  LogMessage("G90 Response:");
+  LogMessage(answer);
+  if (answer != "ok") {
+    LogMessage("expected ok.");
+    return DEVICE_ERR;
+  }
 
   PurgeComPortH();
 
@@ -197,8 +209,21 @@ int RAMPSHub::Initialize()
   LogMessage("Writing current location as origin.");
   LogMessage(command);
   ret = SendCommand(command);
-  if (ret != DEVICE_OK)
+  if (ret != DEVICE_OK) {
+    LogMessage("G92 Send Command failed");
     return ret;
+  }
+  ret = ReadResponse(answer);
+  if (ret != DEVICE_OK) {
+    LogMessage("error getting controller version.");
+    return ret;
+  }
+  LogMessage("G92 Response:");
+  LogMessage(answer);
+  if (answer != "ok") {
+    LogMessage("expected ok.");
+    return DEVICE_ERR;
+  }
 
   PurgeComPortH();
 
@@ -208,9 +233,50 @@ int RAMPSHub::Initialize()
 
     PurgeComPortH();
 
+  LogMessage("Writing current location as origin.");
+  LogMessage("M206 X0 Y0 Z0");
+  ret = SendCommand("M206 X0 Y0 Z0");
+  if (ret != DEVICE_OK) {
+    LogMessage("Set Origin Send Command failed");
+    return ret;
+  }
+  LogMessage("Set Origin Response:");
+  ret = ReadResponse(answer);
+  if (ret != DEVICE_OK) {
+    LogMessage("error getting controller version.");
+    return ret;
+  }
+  LogMessage(answer);
+  if (answer != "ok") {
+    LogMessage("expected ok.");
+    return DEVICE_ERR;
+  }
+
+  SetVelocity(velocity_);
+    PurgeComPortH();
+  SetAcceleration(acceleration_);
+    PurgeComPortH();
+
   ret = UpdateStatus();
   if (ret != DEVICE_OK)
     return ret;
+
+
+
+  // Max Speed
+  pAct = new CPropertyAction (this, &RAMPSHub::OnVelocity);
+  CreateProperty(g_XYVelocityProp, CDeviceUtils::ConvertToString(velocity_), MM::Float, false, pAct);
+  SetPropertyLimits(g_XYVelocityProp, 0.0, 10000000.0);
+
+  // Acceleration
+  pAct = new CPropertyAction (this, &RAMPSHub::OnAcceleration);
+  CreateProperty(g_XYAccelerationProp, CDeviceUtils::ConvertToString(acceleration_), MM::Float, false, pAct);
+  SetPropertyLimits(g_XYAccelerationProp, 0.0, 1000000000);
+  
+  pAct = new CPropertyAction (this, &RAMPSHub::OnSettleTime);
+  CreateProperty(g_SettleTimeProp, CDeviceUtils::ConvertToString(settle_time_), MM::Integer, false, pAct);
+  SetPropertyLimits(g_SettleTimeProp, 0, 5000);
+  
 
   initialized_ = true;
   return DEVICE_OK;
@@ -227,21 +293,32 @@ int RAMPSHub::GetControllerVersion(string& version)
 {
   LogMessage("RAMPS GetControllerVersion");
   int ret = DEVICE_OK;
-  const char* command = "$fv";
   version = "";
 
-  LogMessage("Writing to com port");
-  LogMessage(command);
   std::string answer;
-  ret = SendCommand(command);
-  if (ret != DEVICE_OK)
+  ret = SendCommand("M115");
+  if (ret != DEVICE_OK) {
+    LogMessage("error getting controller version.");
     return ret;
+  }
   ret = ReadResponse(answer);
-  if (ret != DEVICE_OK)
+  if (ret != DEVICE_OK) {
+    LogMessage("error getting controller version.");
     return ret;
+  }
   LogMessage("Got answer:");
   LogMessage(answer.c_str());
   version = answer;
+
+  ret = ReadResponse(answer);
+  if (ret != DEVICE_OK) {
+    LogMessage("error getting controller version.");
+    return ret;
+  }
+  LogMessage("Got OK:");
+  LogMessage(answer.c_str());
+  version = answer;
+
   return ret;
 
 }
@@ -358,7 +435,7 @@ int RAMPSHub::ReadResponse(std::string &returnString, float timeout)
   try
   {
 
-    int ret = GetSerialAnswerComPortH(an,"\n\r");
+    int ret = GetSerialAnswerComPortH(an,"\n");
     if (ret != DEVICE_OK)
     {
       LogMessage(std::string("answer get error!_"));
@@ -370,7 +447,7 @@ int RAMPSHub::ReadResponse(std::string &returnString, float timeout)
   }
   catch(...)
   {
-    LogMessage("Exception in send command!");
+    LogMessage("Exception in receive response!");
     return DEVICE_ERR;
   }
   return DEVICE_OK;
@@ -405,7 +482,6 @@ MM::DeviceDetectionStatus RAMPSHub::DetectDevice(void)
       GetCoreCallback()->SetDeviceProperty(port_.c_str(), MM::g_Keyword_Handshaking, "Off");
       GetCoreCallback()->SetDeviceProperty(port_.c_str(), MM::g_Keyword_BaudRate, "115200" );
       GetCoreCallback()->SetDeviceProperty(port_.c_str(), MM::g_Keyword_StopBits, "1");
-      // Arduino timed out in GetControllerVersion even if AnswerTimeout  = 300 ms
       GetCoreCallback()->SetDeviceProperty(port_.c_str(), "AnswerTimeout", "500.0");
       GetCoreCallback()->SetDeviceProperty(port_.c_str(), "DelayBetweenCharsMs", "0");
       MM::Device* pS = GetCoreCallback()->GetDevice(this, port_.c_str());
@@ -413,6 +489,18 @@ MM::DeviceDetectionStatus RAMPSHub::DetectDevice(void)
       // The first second or so after opening the serial port, the Arduino is waiting for firmwareupgrades.  Simply sleep 2 seconds.
       CDeviceUtils::SleepMs(2000);
       MMThreadGuard myLock(executeLock_);
+      string an;
+
+      while (true) {
+        int ret = ReadResponse(an);
+        if (ret != DEVICE_OK)
+        {
+          LogMessage("Got timeout:");
+          LogMessageCode(ret,true);
+          break;
+        }
+      }
+      LogMessage("Checking for status.");
       PurgeComPort(port_.c_str());
       int ret = GetStatus();
       // later, Initialize will explicitly check the version #
@@ -429,7 +517,6 @@ MM::DeviceDetectionStatus RAMPSHub::DetectDevice(void)
       pS->Shutdown();
       // always restore the AnswerTimeout to the default
       GetCoreCallback()->SetDeviceProperty(port_.c_str(), "AnswerTimeout", answerTO);
-
     }
   }
   catch(...)
@@ -458,13 +545,32 @@ Type stringToNum(const std::string& str)
   return num;
 }
 
-std::string RAMPSHub::GetState() { return status_; }
+int RAMPSHub::GetXYPosition(double *x, double *y) {
+  GetStatus();
+  *x = MPos[0];
+  *y = MPos[1];
+  return DEVICE_OK;
+}
+
+std::string RAMPSHub::GetState() {
+  GetStatus();
+  return status_;
+}
+
+int RAMPSHub::SetTargetXY(double x, double y) {
+  status_ = "Running";
+  target_x_ = x;
+  target_y_ = y;
+}
+
+int RAMPSHub::SetTargetZ(double z) {
+  status_ = "Running";
+  target_z_ = z;
+}
 
 int RAMPSHub::GetStatus()
 {
   LogMessage("RAMPS GetStatus");
-  std::string cmd;
-  cmd.assign("$sr"); // x step/mm
   std::string returnString;
 
   if(!portAvailable_)
@@ -474,74 +580,85 @@ int RAMPSHub::GetStatus()
 
   PurgeComPortH();
   LogMessage("Write command.");
-  ret = SendCommand(cmd);
+  LogMessage("M114");
+  ret = SendCommand("M114");
   if (ret != DEVICE_OK)
   {
     LogMessage("command write fail");
     return ret;
   }
 
+  string an;
 
-  while(true) {
-    LogMessage("loop");
-    string an;
-
-    ret = ReadResponse(an);
-    if (ret != DEVICE_OK)
-    {
-      LogMessage(std::string("answer get error!_"));
-      return ret;
+  LogMessage("Checking for status");
+  ret = ReadResponse(an);
+  if (ret != DEVICE_OK)
+  {
+    LogMessage(std::string("answer get error!_"));
+    return ret;
+  }
+  if (an.length() <1) {
+    LogMessage("device error.");
+    return DEVICE_ERR;
+  }
+  LogMessage("Got answer:");
+  LogMessage(an);
+  std::vector<std::string> spl;
+  spl = split(an, ' ');
+  for (std::vector<std::string>::iterator i = spl.begin(); i != spl.end(); ++i) {
+    LogMessage("i=");
+    LogMessage(*i);
+    if (*i == "Count") break;
+    std::vector<std::string> spl2;
+    spl2 = split(*i, ':');
+    if (spl2[0] == "X") {
+      LogMessage("GotStatus X: ");
+      LogMessage(spl2[1]);
+      MPos[0] = stringToNum<double>(spl2[1]);
     }
-    LogMessage("answer:");
-    LogMessage(an);
-    if (an.length() <1) {
-      LogMessage("device error.");
-      return DEVICE_ERR;
+    spl2 = split(*i, ':');
+    if (spl2[0] == "Y") {
+      LogMessage("GotStatus Y: ");
+      LogMessage(spl2[1]);
+      MPos[1] = stringToNum<double>(spl2[1]);
     }
-    std::string x;
-    if (an.substr(0, 10) == "X position") {
-      x = an.substr(21,10);
-      std::vector<std::string> spl;
-      spl = split(x, ' ');
-      MPos[0] = stringToNum<double>(spl[0]);
-    }
-    else if (an.substr(0, 10) == "Y position") {
-      x = an.substr(21,10);
-      std::vector<std::string> spl;
-      spl = split(x, ' ');
-      MPos[1] = stringToNum<double>(spl[0]);
-    }
-    else if (an.substr(0, 10) == "Z position") {
-      x = an.substr(21,10);
-      std::vector<std::string> spl;
-      spl = split(x, ' ');
-      MPos[2] = stringToNum<double>(spl[0]);
-    }
-    else if (an.substr(0, 9) == "Velocity:") {
-      x = an.substr(21,10);
-    }
-    else if (an.substr(0, 6) == "Units:") {
-      // TODO(dek): correct these if wrong.
-      x = an.substr(21,10);
-    }
-    else if (an.substr(0, 18) == "Coordinate system:") {
-      x = an.substr(21,10);
-    }
-    else if (an.substr(0, 14) == "Distance mode:") {
-      // TODO(dek): correct these if wrong.
-      x = an.substr(21,10);
-    }
-    else if (an.substr(0, 14) == "Machine state:") {
-      x = an.substr(21,10);
-      status_ = x;
-      SetProperty("Status",x.c_str());
-      break;
-    }
-    else {
-      LogMessage("Saw unexpected line:");
-      LogMessage(an);
+    spl2 = split(*i, ':');
+    if (spl2[0] == "Z") {
+      LogMessage("GotStatus Z: ");
+      LogMessage(spl2[1]);
+      MPos[2] = stringToNum<double>(spl2[1]);
     }
   }
+  LogMessage("Checking for ok");
+  ret = ReadResponse(an);
+  if (ret != DEVICE_OK)
+  {
+    LogMessage(std::string("answer get error!_"));
+    return ret;
+  }
+  if (an != "ok")
+  {
+    LogMessage(std::string("answer get error!_"));
+    return ret;
+  }
+  LogMessage("Got OK");
+
+  
+
+  // if (timeOutTimer_ == 0) {
+  //   LogMessage("Stage transitioned from moving to stopped.");
+  //   LogMessage("Enabling post-stop timer.");
+  //   timeOutTimer_ = new MM::TimeoutMs(GetCurrentMMTime(),  settle_time_);
+  //   return true;
+  // } else if (timeOutTimer_->expired(GetCurrentMMTime())) {
+  //   LogMessage("Timer expired. return false.");
+  //   delete(timeOutTimer_);
+  //   timeOutTimer_ = 0;
+  // }
+
+  // TODO(dek): add Z here
+  if (status_ == "Running" && MPos[0] == target_x_ && MPos[1] == target_y_ && MPos[2] == target_z_)
+    status_ = "Idle";
   return DEVICE_OK;
 }
 
@@ -564,3 +681,120 @@ int RAMPSHub::GetSerialAnswerComPortH (std::string& ans,  const char* term)
 int RAMPSHub::PurgeComPortH() {  LogMessage("RAMPS PurgeComPortH");
 return PurgeComPort(port_.c_str());}
 int RAMPSHub::WriteToComPortH(const unsigned char* command, unsigned len) {LogMessage("RAMPS WriteToComPortH"); return WriteToComPort(port_.c_str(), command, len);}
+
+int RAMPSHub::OnSettleTime(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+LogMessage("RAMPS XYStage OnSettleTime");
+  if (eAct == MM::BeforeGet)
+  {
+        
+
+    pProp->Set(settle_time_);
+  }
+  else if (eAct == MM::AfterSet)
+  {
+    if (initialized_)
+    {
+      long settle_time;
+      pProp->Get(settle_time);
+      settle_time_ = settle_time;
+    }
+  }
+
+   
+  LogMessage("Set settle time");
+
+  return DEVICE_OK;
+}
+
+int RAMPSHub::SetVelocity(double velocity) {
+  RAMPSHub* pHub = static_cast<RAMPSHub*>(GetParentHub());
+
+  std::string velStr = CDeviceUtils::ConvertToString(velocity);
+  std::string command = "M203 X" + velStr + " Y" + velStr + " Z" + velStr;
+  std::string result;
+  PurgeComPortH();
+  int ret = pHub->SendCommand(command);
+  if (ret != DEVICE_OK) return ret;
+  ret = pHub->ReadResponse(result);
+  if (ret != DEVICE_OK) return ret;
+  if (result != "ok") {
+    LogMessage("Expected OK");
+  }
+
+  return ret;
+}
+
+int RAMPSHub::SetAcceleration(double acceleration) {
+  RAMPSHub* pHub = static_cast<RAMPSHub*>(GetParentHub());
+	
+  std::string accStr = CDeviceUtils::ConvertToString(acceleration);
+  std::string command = "M201 X" + accStr + " Y" + accStr + " Z" + accStr;
+  std::string result;
+  PurgeComPortH();
+  int ret = pHub->SendCommand(command);
+  if (ret != DEVICE_OK) return ret;
+  ret = pHub->ReadResponse(result);
+  if (ret != DEVICE_OK) return ret;
+  if (result != "ok") {
+    LogMessage("Expected OK");
+  }
+
+  return ret;
+}
+
+
+// TODO(dek): these should send actual commands to update the device
+int RAMPSHub::OnVelocity(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+  LogMessage("RAMPS XYStage OnVelocity");
+  if (eAct == MM::BeforeGet)
+  {
+        
+
+    pProp->Set(velocity_);
+  }
+  else if (eAct == MM::AfterSet)
+  {
+    if (initialized_)
+    {
+      double velocity;
+      pProp->Get(velocity);
+      velocity_ = velocity;
+      SetVelocity(velocity);
+    }
+
+  }
+
+   
+  LogMessage("Set velocity");
+
+  return DEVICE_OK;
+}
+
+int RAMPSHub::OnAcceleration(MM::PropertyBase* pProp, MM::ActionType eAct)
+{
+  LogMessage("RAMPS XYStage OnAcceleration");
+  if (eAct == MM::BeforeGet)
+  {
+        
+
+    pProp->Set(acceleration_);
+  }
+  else if (eAct == MM::AfterSet)
+  {
+    if (initialized_)
+    {
+      double acceleration;
+      pProp->Get(acceleration);
+      acceleration_ = acceleration;
+      SetAcceleration(acceleration);
+    }
+
+  }
+
+   
+  LogMessage("Set acceleration");
+
+  return DEVICE_OK;
+}

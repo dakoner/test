@@ -64,26 +64,16 @@ class CRAMPSZStage : public CStageBase<CRAMPSZStage>
   int AddToStageSequence(double /*position*/);
   int SendStageSequence();
 
-  int SetVelocity(double velocity);
-  int SetAcceleration(double acceleration);
-  int OnVelocity(MM::PropertyBase* pProp, MM::ActionType eAct);
-  int OnAcceleration(MM::PropertyBase* pProp, MM::ActionType eAct);
 
 
  private:
   int GetFocusFirmwareVersion();
   int GetUpperLimit();
   int GetLowerLimit();
-  double velocity_;
-  double acceleration_;
   double stepSize_um_;
   double posZ_um_;
-
-
   bool initialized_;
   double lowerLimit_;
-  MM::TimeoutMs* timeOutTimer_;
-
   double upperLimit_;
 
 };
