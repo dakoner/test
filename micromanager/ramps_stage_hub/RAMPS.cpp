@@ -205,34 +205,6 @@ int RAMPSHub::Initialize()
 
   PurgeComPortH();
 
-  command = "G92";
-  LogMessage("Writing current location as origin.");
-  LogMessage(command);
-  ret = SendCommand(command);
-  if (ret != DEVICE_OK) {
-    LogMessage("G92 Send Command failed");
-    return ret;
-  }
-  ret = ReadResponse(answer);
-  if (ret != DEVICE_OK) {
-    LogMessage("error getting controller version.");
-    return ret;
-  }
-  LogMessage("G92 Response:");
-  LogMessage(answer);
-  if (answer != "ok") {
-    LogMessage("expected ok.");
-    return DEVICE_ERR;
-  }
-
-  PurgeComPortH();
-
-  ret = GetStatus();
-  if (ret != DEVICE_OK)
-    return ret;
-
-    PurgeComPortH();
-
   LogMessage("Writing current location as origin.");
   LogMessage("M206 X0 Y0 Z0");
   ret = SendCommand("M206 X0 Y0 Z0");
@@ -251,11 +223,18 @@ int RAMPSHub::Initialize()
     LogMessage("expected ok.");
     return DEVICE_ERR;
   }
+  PurgeComPortH();
 
   SetVelocity(velocity_);
     PurgeComPortH();
   SetAcceleration(acceleration_);
     PurgeComPortH();
+
+  PurgeComPortH();
+
+  ret = GetStatus();
+  if (ret != DEVICE_OK)
+    return ret;
 
   ret = UpdateStatus();
   if (ret != DEVICE_OK)
