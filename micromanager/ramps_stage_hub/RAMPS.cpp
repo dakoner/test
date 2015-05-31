@@ -559,13 +559,13 @@ std::string RAMPSHub::GetState() {
 
 int RAMPSHub::SetTargetXY(double x, double y) {
   status_ = "Running";
-  target_x_ = x;
-  target_y_ = y;
+  target_x_ = x/1000.;
+  target_y_ = y/1000.;
 }
 
 int RAMPSHub::SetTargetZ(double z) {
   status_ = "Running";
-  target_z_ = z;
+  target_z_ = z/1000.;
 }
 
 int RAMPSHub::GetStatus()
@@ -657,8 +657,25 @@ int RAMPSHub::GetStatus()
   // }
 
   // TODO(dek): add Z here
-  if (status_ == "Running" && MPos[0] == target_x_ && MPos[1] == target_y_ && MPos[2] == target_z_)
-    status_ = "Idle";
+  LogMessage("target_x_=");
+  LogMessage(CDeviceUtils::ConvertToString(target_x_));
+  LogMessage("target_y_=");
+  LogMessage(CDeviceUtils::ConvertToString(target_y_));
+  LogMessage("target_z_=");
+  LogMessage(CDeviceUtils::ConvertToString(target_z_));
+  LogMessage("MPos[0]=");
+  LogMessage(CDeviceUtils::ConvertToString(MPos[0]));
+  LogMessage("MPos[1]_=");
+  LogMessage(CDeviceUtils::ConvertToString(MPos[1]));
+  LogMessage("MPos[2]=");
+  LogMessage(CDeviceUtils::ConvertToString(MPos[2]));
+  if (status_ == "Running") {
+    LogMessage("Device is running.");
+    if (MPos[0] == target_x_ && MPos[1] == target_y_ && MPos[2] == target_z_) {
+      LogMessage("Device reached target state.");
+      status_ = "Idle";
+    }
+  }
   return DEVICE_OK;
 }
 
