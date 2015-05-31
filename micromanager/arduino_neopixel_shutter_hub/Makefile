@@ -6,10 +6,10 @@ CXXFLAGS=-c -fPIC -DPACKAGE_NAME=\"Micro-Manager\" -DPACKAGE_TARNAME=\"micro-man
 install: libmmgr_dal_ArduinoNeoPixel.so.0
 	cp libmmgr_dal_ArduinoNeoPixel.so.0 $(IMJ)
 
-libmmgr_dal_ArduinoNeoPixel.so.0: Arduino.o
+libmmgr_dal_ArduinoNeoPixel.so.0: ArduinoNeoPixelShutter.o
 	$(CXX)  -fPIC -DPIC -shared -o $@  $^ -L$(MM)/MMDevice/.libs -lMMDevice
 
-Arduino.o: Arduino.cpp Arduino.h
+ArduinoNeoPixelShutter.o: ArduinoNeoPixelShutter.cpp ArduinoNeoPixelShutter.h
 
 clean:
 	rm -f *.o *.so.0 *~
