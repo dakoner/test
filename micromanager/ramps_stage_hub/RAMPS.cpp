@@ -561,11 +561,13 @@ int RAMPSHub::SetTargetXY(double x, double y) {
   status_ = "Running";
   target_x_ = x/1000.;
   target_y_ = y/1000.;
+  return DEVICE_OK;
 }
 
 int RAMPSHub::SetTargetZ(double z) {
   status_ = "Running";
   target_z_ = z/1000.;
+  return DEVICE_OK;
 }
 
 int RAMPSHub::GetStatus()
